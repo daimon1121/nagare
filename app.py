@@ -4,8 +4,9 @@ from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-import json, os, uuid
-import stripe
+import os, uuid, stripe
+import psycopg2
+import psycopg2.extras
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
@@ -28,20 +29,23 @@ def _verify_reset_token(token, max_age=3600):
     except (SignatureExpired, BadSignature):
         return None
 
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
-STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
-STRIPE_WEBHOOK_SECRET  = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PRICE_ID        = os.environ.get("STRIPE_PRICE_ID", "")
+stripe.api_key             = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY     = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET      = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PRICE_ID            = os.environ.get("STRIPE_PRICE_ID", "")
 
 FREE_TASK_LIMIT = 10
-
-TASKS_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tasks.json")
-TOOLS_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools.json")
-ASSIGNEES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assignees.json")
-USERS_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.json")
 TOOLS_VER = 2
 
-# ─── Tool base names ────────────────────────────────────────────────────────
+# ─── Database ────────────────────────────────────────────────────────────────
+_DATABASE_URL = os.environ.get("DATABASE_URL", "")
+if _DATABASE_URL.startswith("postgres://"):
+    _DATABASE_URL = _DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+def get_conn():
+    return psycopg2.connect(_DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+
+# ─── Tool base names ──────────────────────────────────────────────────────────
 _TOOL_BASE = [
     "GitHub","GitLab","Bitbucket","Jira","Confluence",
     "Trello","Asana","Notion","Monday.com","ClickUp",
@@ -89,29 +93,116 @@ _SAMPLE_ASSIGNEES = [
     ("橋本 陽子",   "y.hashimoto@pm.nexwave.co.jp"),
 ]
 
+# ─── DB Init ─────────────────────────────────────────────────────────────────
+def init_db():
+    conn = get_conn()
+    cur  = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id                    VARCHAR(36)  PRIMARY KEY,
+            email                 VARCHAR(255) UNIQUE NOT NULL,
+            password              VARCHAR(255) NOT NULL,
+            plan                  VARCHAR(20)  DEFAULT 'free',
+            stripe_customer_id    VARCHAR(255),
+            stripe_subscription_id VARCHAR(255)
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id                  SERIAL PRIMARY KEY,
+            name                VARCHAR(500),
+            request_date        VARCHAR(20),
+            start_date          VARCHAR(20),
+            distribution_date   VARCHAR(20),
+            end_date            VARCHAR(20),
+            status              VARCHAR(50),
+            priority            VARCHAR(20),
+            tool                VARCHAR(200),
+            assignee            VARCHAR(200),
+            description         TEXT,
+            implementation_date VARCHAR(20)
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS assignees (
+            id    SERIAL PRIMARY KEY,
+            name  VARCHAR(200) NOT NULL,
+            email VARCHAR(255)
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS tools (
+            id   SERIAL PRIMARY KEY,
+            name VARCHAR(200) NOT NULL
+        )
+    """)
+
+    # Seed assignees
+    cur.execute("SELECT COUNT(*) FROM assignees")
+    if cur.fetchone()["count"] == 0:
+        for name, email in _SAMPLE_ASSIGNEES:
+            cur.execute("INSERT INTO assignees (name, email) VALUES (%s, %s)", (name, email))
+
+    # Seed tools
+    cur.execute("SELECT COUNT(*) FROM tools")
+    if cur.fetchone()["count"] == 0:
+        tool_names = [f"{i:03d}_{b}" for i, b in enumerate(_TOOL_BASE, 1)]
+        for i in range(len(_TOOL_BASE) + 1, 301):
+            tool_names.append(f"{i:03d}_ツール")
+        for name in tool_names:
+            cur.execute("INSERT INTO tools (name) VALUES (%s)", (name,))
+
+    # Seed tasks
+    cur.execute("SELECT COUNT(*) FROM tasks")
+    if cur.fetchone()["count"] == 0:
+        today = datetime.now()
+        def d(n): return (today + timedelta(days=n)).strftime("%Y-%m-%d")
+        rows = [
+            ("要件定義・仕様策定",    d(-23),d(-20),d(-13),d(-11),"完了",  "高","005_Confluence","田中 太郎","ステークホルダーへのヒアリング完了。"),
+            ("UI/UXデザイン",         d(-17),d(-14),d(-5), d(-3), "完了",  "高","015_Figma",     "鈴木 花子","ワイヤーフレーム・プロトタイプを作成。"),
+            ("データベース設計",       d(-12),d(-10),d(-4), d(-2), "完了",  "中","039_PostgreSQL","佐藤 一郎","ER図・テーブル定義書を作成。"),
+            ("バックエンド開発",       d(-8), d(-5), d(9),  d(12), "進行中","高","001_GitHub",    "伊藤 健二","REST API実装中。"),
+            ("フロントエンド開発",     d(-5), d(-2), d(12), d(15), "進行中","高","073_React",     "渡辺 祐子","コンポーネント実装中。"),
+            ("単体テスト",             d(5),  d(8),  d(15), d(18), "未着手","中","095_Sonarqube", "山田 修",  "ユニットテストを実施予定。"),
+            ("結合テスト",             d(13), d(16), d(22), d(25), "未着手","高","056_Postman",   "高橋 美香","API連携・画面遷移の総合確認。"),
+            ("パフォーマンス改善",     d(7),  d(10), d(17), d(20), "未着手","低","051_Datadog",   "佐藤 一郎","ボトルネック分析後に対応。"),
+            ("ドキュメント整備",       d(15), d(18), d(25), d(28), "未着手","低","005_Confluence","中村 理恵","APIドキュメント・運用手順書の作成。"),
+            ("本番リリース準備",       d(21), d(24), d(27), d(30), "未着手","高","028_Terraform", "田中 太郎","インフラ構築・監視設定。"),
+        ]
+        for name,rq,s,di,e,status,pri,tool,assignee,desc in rows:
+            cur.execute("""
+                INSERT INTO tasks (name,request_date,start_date,distribution_date,end_date,
+                                   status,priority,tool,assignee,description)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """, (name,rq,s,di,e,status,pri,tool,assignee,desc))
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+with app.app_context():
+    if _DATABASE_URL:
+        init_db()
+
 # ─── Users ───────────────────────────────────────────────────────────────────
-
-def load_users():
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"users": []}
-
-def save_users(data):
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
 def find_user_by_email(email):
-    return next((u for u in load_users()["users"] if u["email"] == email), None)
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE email=%s", (email,))
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    return dict(row) if row else None
 
 def find_user_by_id(uid):
-    return next((u for u in load_users()["users"] if u["id"] == uid), None)
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE id=%s", (uid,))
+    row = cur.fetchone()
+    cur.close(); conn.close()
+    return dict(row) if row else None
 
 def current_user():
     uid = session.get("user_id")
-    if not uid:
-        return None
-    return find_user_by_id(uid)
+    return find_user_by_id(uid) if uid else None
 
 def login_required(f):
     @wraps(f)
@@ -125,77 +216,37 @@ def is_pro():
     u = current_user()
     return u and u.get("plan") == "pro"
 
-# ─── Tools ──────────────────────────────────────────────────────────────────
-
+# ─── Tools ───────────────────────────────────────────────────────────────────
 def load_tools():
-    if os.path.exists(TOOLS_FILE):
-        with open(TOOLS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if data.get("version") == TOOLS_VER:
-            return data
-    tools = [{"id": i, "name": f"{i:03d}_{b}"} for i, b in enumerate(_TOOL_BASE, 1)]
-    for i in range(len(_TOOL_BASE) + 1, 301):
-        tools.append({"id": i, "name": f"{i:03d}_ツール"})
-    data = {"version": TOOLS_VER, "tools": tools, "next_id": 301}
-    save_tools(data)
-    return data
-
-def save_tools(data):
-    with open(TOOLS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("SELECT * FROM tools ORDER BY id")
+    tools = [dict(r) for r in cur.fetchall()]
+    next_id = (max(t["id"] for t in tools) + 1) if tools else 1
+    cur.close(); conn.close()
+    return {"version": TOOLS_VER, "tools": tools, "next_id": next_id}
 
 # ─── Assignees ───────────────────────────────────────────────────────────────
-
 def load_assignees():
-    if os.path.exists(ASSIGNEES_FILE):
-        with open(ASSIGNEES_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    assignees = [{"id": i, "name": n, "email": e} for i, (n, e) in enumerate(_SAMPLE_ASSIGNEES, 1)]
-    data = {"assignees": assignees, "next_id": len(assignees) + 1}
-    save_assignees(data)
-    return data
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("SELECT * FROM assignees ORDER BY id")
+    assignees = [dict(r) for r in cur.fetchall()]
+    next_id = (max(a["id"] for a in assignees) + 1) if assignees else 1
+    cur.close(); conn.close()
+    return {"assignees": assignees, "next_id": next_id}
 
-def save_assignees(data):
-    with open(ASSIGNEES_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-# ─── Tasks ──────────────────────────────────────────────────────────────────
-
+# ─── Tasks ───────────────────────────────────────────────────────────────────
 def load_data():
-    if os.path.exists(TASKS_FILE):
-        with open(TASKS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    today = datetime.now()
-    def d(n): return (today + timedelta(days=n)).strftime("%Y-%m-%d")
-    rows = [
-        ("要件定義・仕様策定",    d(-23),d(-20),d(-13),d(-11),"完了",  "高","005_Confluence","田中 太郎","ステークホルダーへのヒアリング完了。"),
-        ("UI/UXデザイン",         d(-17),d(-14),d(-5), d(-3), "完了",  "高","015_Figma",     "鈴木 花子","ワイヤーフレーム・プロトタイプを作成。"),
-        ("データベース設計",       d(-12),d(-10),d(-4), d(-2), "完了",  "中","039_PostgreSQL","佐藤 一郎","ER図・テーブル定義書を作成。"),
-        ("バックエンド開発",       d(-8), d(-5), d(9),  d(12), "進行中","高","001_GitHub",    "伊藤 健二","REST API実装中。"),
-        ("フロントエンド開発",     d(-5), d(-2), d(12), d(15), "進行中","高","073_React",     "渡辺 祐子","コンポーネント実装中。"),
-        ("単体テスト",             d(5),  d(8),  d(15), d(18), "未着手","中","095_Sonarqube", "山田 修",  "ユニットテストを実施予定。"),
-        ("結合テスト",             d(13), d(16), d(22), d(25), "未着手","高","056_Postman",   "高橋 美香","API連携・画面遷移の総合確認。"),
-        ("パフォーマンス改善",     d(7),  d(10), d(17), d(20), "未着手","低","051_Datadog",   "佐藤 一郎","ボトルネック分析後に対応。"),
-        ("ドキュメント整備",       d(15), d(18), d(25), d(28), "未着手","低","005_Confluence","中村 理恵","APIドキュメント・運用手順書の作成。"),
-        ("本番リリース準備",       d(21), d(24), d(27), d(30), "未着手","高","028_Terraform", "田中 太郎","インフラ構築・監視設定。"),
-    ]
-    data = {"tasks": [], "next_id": 1}
-    for name,rq,s,di,e,status,pri,tool,assignee,desc in rows:
-        data["tasks"].append({"id":data["next_id"],"name":name,
-                               "request_date":rq,"start_date":s,
-                               "distribution_date":di,"end_date":e,
-                               "status":status,"priority":pri,"tool":tool,
-                               "assignee":assignee,"description":desc})
-        data["next_id"] += 1
-    save_data(data)
-    return data
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("SELECT * FROM tasks ORDER BY id")
+    tasks = [dict(r) for r in cur.fetchall()]
+    next_id = (max(t["id"] for t in tasks) + 1) if tasks else 1
+    cur.close(); conn.close()
+    return {"tasks": tasks, "next_id": next_id}
 
-def save_data(data):
-    with open(TASKS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def _composite_key(t):
+    return (t.get("assignee",""), t.get("tool",""), t.get("name",""), t.get("implementation_date",""))
 
 # ─── Auth Routes ─────────────────────────────────────────────────────────────
-
 @app.route("/signup", methods=["GET","POST"])
 def signup():
     if request.method == "POST":
@@ -207,18 +258,14 @@ def signup():
         if find_user_by_email(email):
             flash("このメールアドレスはすでに登録されています")
             return render_template("signup.html")
-        users = load_users()
-        user = {
-            "id": str(uuid.uuid4()),
-            "email": email,
-            "password": generate_password_hash(password),
-            "plan": "free",
-            "stripe_customer_id": None,
-            "stripe_subscription_id": None,
-        }
-        users["users"].append(user)
-        save_users(users)
-        session["user_id"] = user["id"]
+        uid = str(uuid.uuid4())
+        conn = get_conn(); cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO users (id,email,password,plan) VALUES (%s,%s,%s,'free')",
+            (uid, email, generate_password_hash(password))
+        )
+        conn.commit(); cur.close(); conn.close()
+        session["user_id"] = uid
         return redirect(url_for("index"))
     return render_template("signup.html")
 
@@ -240,10 +287,10 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-@app.route("/forgot-password", methods=["GET", "POST"])
+@app.route("/forgot-password", methods=["GET","POST"])
 def forgot_password():
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
+        email = request.form.get("email","").strip().lower()
         user  = find_user_by_email(email)
         if user:
             token     = _make_reset_token(email)
@@ -259,45 +306,39 @@ def forgot_password():
             except Exception:
                 flash("メール送信に失敗しました。しばらく後でお試しください。")
                 return render_template("forgot_password.html")
-        # メールが存在しない場合も同じメッセージ（列挙攻撃防止）
         flash("登録済みのメールアドレスであれば、リセットリンクを送信しました。")
         return redirect(url_for("login"))
     return render_template("forgot_password.html")
 
-@app.route("/reset-password/<token>", methods=["GET", "POST"])
+@app.route("/reset-password/<token>", methods=["GET","POST"])
 def reset_password(token):
     email = _verify_reset_token(token)
     if not email:
         flash("リセットリンクが無効または期限切れです（1時間以内にお使いください）。")
         return redirect(url_for("forgot_password"))
     if request.method == "POST":
-        password = request.form.get("password", "")
-        confirm  = request.form.get("confirm", "")
+        password = request.form.get("password","")
+        confirm  = request.form.get("confirm","")
         if len(password) < 6:
             flash("パスワードは6文字以上で入力してください。")
             return render_template("reset_password.html", token=token)
         if password != confirm:
             flash("パスワードが一致しません。")
             return render_template("reset_password.html", token=token)
-        users = load_users()
-        for u in users["users"]:
-            if u["email"] == email:
-                u["password"] = generate_password_hash(password)
-                break
-        save_users(users)
+        conn = get_conn(); cur = conn.cursor()
+        cur.execute("UPDATE users SET password=%s WHERE email=%s",
+                    (generate_password_hash(password), email))
+        conn.commit(); cur.close(); conn.close()
         flash("パスワードをリセットしました。新しいパスワードでログインしてください。")
         return redirect(url_for("login"))
     return render_template("reset_password.html", token=token)
 
-# ─── Pricing / Stripe Routes ─────────────────────────────────────────────────
-
+# ─── Pricing / Stripe Routes ──────────────────────────────────────────────────
 @app.route("/pricing")
 @login_required
 def pricing():
     u = current_user()
-    return render_template("pricing.html",
-                           user=u,
-                           stripe_key=STRIPE_PUBLISHABLE_KEY)
+    return render_template("pricing.html", user=u, stripe_key=STRIPE_PUBLISHABLE_KEY)
 
 @app.route("/create-checkout-session", methods=["POST"])
 @login_required
@@ -341,40 +382,33 @@ def webhook():
         event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
     except Exception:
         return "", 400
-
     if event["type"] == "customer.subscription.deleted":
-        sub = event["data"]["object"]
-        _downgrade_by_subscription(sub["id"])
+        _downgrade_by_subscription(event["data"]["object"]["id"])
     elif event["type"] == "checkout.session.completed":
         obj = event["data"]["object"]
         _upgrade_user(obj.get("metadata",{}).get("user_id"),
-                      obj.get("customer"),
-                      obj.get("subscription"))
+                      obj.get("customer"), obj.get("subscription"))
     return "", 200
 
 def _upgrade_user(user_id, customer_id, subscription_id):
     if not user_id:
         return
-    users = load_users()
-    for u in users["users"]:
-        if u["id"] == user_id:
-            u["plan"] = "pro"
-            u["stripe_customer_id"] = customer_id
-            u["stripe_subscription_id"] = subscription_id
-            break
-    save_users(users)
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("""
+        UPDATE users SET plan='pro', stripe_customer_id=%s, stripe_subscription_id=%s
+        WHERE id=%s
+    """, (customer_id, subscription_id, user_id))
+    conn.commit(); cur.close(); conn.close()
 
 def _downgrade_by_subscription(subscription_id):
-    users = load_users()
-    for u in users["users"]:
-        if u.get("stripe_subscription_id") == subscription_id:
-            u["plan"] = "free"
-            u["stripe_subscription_id"] = None
-            break
-    save_users(users)
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("""
+        UPDATE users SET plan='free', stripe_subscription_id=NULL
+        WHERE stripe_subscription_id=%s
+    """, (subscription_id,))
+    conn.commit(); cur.close(); conn.close()
 
-# ─── Routes: Tools ──────────────────────────────────────────────────────────
-
+# ─── Routes: Tools ───────────────────────────────────────────────────────────
 @app.route("/api/tools", methods=["GET"])
 @login_required
 def get_tools():
@@ -383,32 +417,34 @@ def get_tools():
 @app.route("/api/tools", methods=["POST"])
 @login_required
 def add_tool():
-    data = load_tools()
     name = (request.json or {}).get("name","").strip()
-    if not name: return jsonify({"error":"name required"}),400
-    tool = {"id":data["next_id"],"name":name}
-    data["next_id"] += 1; data["tools"].append(tool)
-    save_tools(data); return jsonify(tool),201
+    if not name: return jsonify({"error":"name required"}), 400
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("INSERT INTO tools (name) VALUES (%s) RETURNING id", (name,))
+    tool_id = cur.fetchone()["id"]
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"id": tool_id, "name": name}), 201
 
 @app.route("/api/tools/<int:tool_id>", methods=["PUT"])
 @login_required
 def update_tool(tool_id):
-    data = load_tools()
-    for i,t in enumerate(data["tools"]):
-        if t["id"]==tool_id:
-            data["tools"][i]["name"]=(request.json or {}).get("name",t["name"]).strip()
-            save_tools(data); return jsonify(data["tools"][i])
-    return jsonify({"error":"not found"}),404
+    name = (request.json or {}).get("name","").strip()
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("UPDATE tools SET name=%s WHERE id=%s RETURNING *", (name, tool_id))
+    row = cur.fetchone()
+    conn.commit(); cur.close(); conn.close()
+    if not row: return jsonify({"error":"not found"}), 404
+    return jsonify(dict(row))
 
 @app.route("/api/tools/<int:tool_id>", methods=["DELETE"])
 @login_required
 def delete_tool(tool_id):
-    data = load_tools()
-    data["tools"]=[t for t in data["tools"] if t["id"]!=tool_id]
-    save_tools(data); return jsonify({"ok":True})
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("DELETE FROM tools WHERE id=%s", (tool_id,))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"ok": True})
 
-# ─── Routes: Assignees ───────────────────────────────────────────────────────
-
+# ─── Routes: Assignees ────────────────────────────────────────────────────────
 @app.route("/api/assignees", methods=["GET"])
 @login_required
 def get_assignees():
@@ -417,35 +453,39 @@ def get_assignees():
 @app.route("/api/assignees", methods=["POST"])
 @login_required
 def add_assignee():
-    data = load_assignees()
     body = request.json or {}
     name = body.get("name","").strip()
-    if not name: return jsonify({"error":"name required"}),400
-    a = {"id":data["next_id"],"name":name,"email":body.get("email","").strip()}
-    data["next_id"] += 1; data["assignees"].append(a)
-    save_assignees(data); return jsonify(a),201
+    if not name: return jsonify({"error":"name required"}), 400
+    email = body.get("email","").strip()
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("INSERT INTO assignees (name,email) VALUES (%s,%s) RETURNING id", (name, email))
+    aid = cur.fetchone()["id"]
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"id": aid, "name": name, "email": email}), 201
 
 @app.route("/api/assignees/<int:aid>", methods=["PUT"])
 @login_required
 def update_assignee(aid):
-    data = load_assignees()
     body = request.json or {}
-    for i,a in enumerate(data["assignees"]):
-        if a["id"]==aid:
-            data["assignees"][i]["name"]  = body.get("name",a["name"]).strip()
-            data["assignees"][i]["email"] = body.get("email",a.get("email","")).strip()
-            save_assignees(data); return jsonify(data["assignees"][i])
-    return jsonify({"error":"not found"}),404
+    name  = body.get("name","").strip()
+    email = body.get("email","").strip()
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("UPDATE assignees SET name=%s, email=%s WHERE id=%s RETURNING *",
+                (name, email, aid))
+    row = cur.fetchone()
+    conn.commit(); cur.close(); conn.close()
+    if not row: return jsonify({"error":"not found"}), 404
+    return jsonify(dict(row))
 
 @app.route("/api/assignees/<int:aid>", methods=["DELETE"])
 @login_required
 def delete_assignee(aid):
-    data = load_assignees()
-    data["assignees"]=[a for a in data["assignees"] if a["id"]!=aid]
-    save_assignees(data); return jsonify({"ok":True})
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("DELETE FROM assignees WHERE id=%s", (aid,))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"ok": True})
 
-# ─── Routes: Tasks ──────────────────────────────────────────────────────────
-
+# ─── Routes: Tasks ────────────────────────────────────────────────────────────
 @app.route("/")
 @login_required
 def index():
@@ -457,9 +497,6 @@ def index():
 def get_tasks():
     return jsonify(load_data())
 
-def _composite_key(t):
-    return (t.get("assignee",""), t.get("tool",""), t.get("name",""), t.get("implementation_date",""))
-
 @app.route("/api/tasks", methods=["POST"])
 @login_required
 def add_task():
@@ -468,33 +505,56 @@ def add_task():
         return jsonify({"error":"plan_limit",
                         "message":f"無料プランはタスク{FREE_TASK_LIMIT}件までです。Proにアップグレードしてください。"}), 403
     task = request.json
-    key = _composite_key(task)
-    if any(_composite_key(t)==key for t in data["tasks"]):
-        return jsonify({"error":"duplicate","message":"同じ担当者・Tool・タスク名・実施日の組み合わせがすでに存在します"}),409
-    task["id"]=data["next_id"]; data["next_id"]+=1
-    data["tasks"].append(task); save_data(data)
-    return jsonify(task),201
+    key  = _composite_key(task)
+    if any(_composite_key(t) == key for t in data["tasks"]):
+        return jsonify({"error":"duplicate","message":"同じ担当者・Tool・タスク名・実施日の組み合わせがすでに存在します"}), 409
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO tasks (name,request_date,start_date,distribution_date,end_date,
+                           status,priority,tool,assignee,description,implementation_date)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+    """, (
+        task.get("name"), task.get("request_date"), task.get("start_date"),
+        task.get("distribution_date"), task.get("end_date"), task.get("status"),
+        task.get("priority"), task.get("tool"), task.get("assignee"),
+        task.get("description"), task.get("implementation_date"),
+    ))
+    task["id"] = cur.fetchone()["id"]
+    conn.commit(); cur.close(); conn.close()
+    return jsonify(task), 201
 
 @app.route("/api/tasks/<int:task_id>", methods=["PUT"])
 @login_required
 def update_task(task_id):
     data = load_data()
-    key = _composite_key(request.json)
-    if any(_composite_key(t)==key and t["id"]!=task_id for t in data["tasks"]):
-        return jsonify({"error":"duplicate","message":"同じ担当者・Tool・タスク名・実施日の組み合わせがすでに存在します"}),409
-    for i,t in enumerate(data["tasks"]):
-        if t["id"]==task_id:
-            updated={**request.json,"id":task_id}
-            data["tasks"][i]=updated; save_data(data)
-            return jsonify(updated)
-    return jsonify({"error":"not found"}),404
+    task = request.json
+    key  = _composite_key(task)
+    if any(_composite_key(t) == key and t["id"] != task_id for t in data["tasks"]):
+        return jsonify({"error":"duplicate","message":"同じ担当者・Tool・タスク名・実施日の組み合わせがすでに存在します"}), 409
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("""
+        UPDATE tasks SET name=%s,request_date=%s,start_date=%s,distribution_date=%s,
+                         end_date=%s,status=%s,priority=%s,tool=%s,assignee=%s,
+                         description=%s,implementation_date=%s
+        WHERE id=%s RETURNING *
+    """, (
+        task.get("name"), task.get("request_date"), task.get("start_date"),
+        task.get("distribution_date"), task.get("end_date"), task.get("status"),
+        task.get("priority"), task.get("tool"), task.get("assignee"),
+        task.get("description"), task.get("implementation_date"), task_id,
+    ))
+    row = cur.fetchone()
+    conn.commit(); cur.close(); conn.close()
+    if not row: return jsonify({"error":"not found"}), 404
+    return jsonify(dict(row))
 
 @app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
 @login_required
 def delete_task(task_id):
-    data = load_data()
-    data["tasks"]=[t for t in data["tasks"] if t["id"]!=task_id]
-    save_data(data); return jsonify({"ok":True})
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("DELETE FROM tasks WHERE id=%s", (task_id,))
+    conn.commit(); cur.close(); conn.close()
+    return jsonify({"ok": True})
 
 @app.route("/api/me")
 @login_required
@@ -502,8 +562,7 @@ def api_me():
     u = current_user()
     return jsonify({"email": u["email"], "plan": u["plan"]})
 
-# ─── Admin ───────────────────────────────────────────────────────────────────
-
+# ─── Admin ────────────────────────────────────────────────────────────────────
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
 def admin_required(f):
@@ -514,10 +573,10 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
-@app.route("/admin/login", methods=["GET", "POST"])
+@app.route("/admin/login", methods=["GET","POST"])
 def admin_login():
     if request.method == "POST":
-        pw = request.form.get("password", "")
+        pw = request.form.get("password","")
         if ADMIN_PASSWORD and pw == ADMIN_PASSWORD:
             session["is_admin"] = True
             return redirect(url_for("admin_dashboard"))
@@ -532,14 +591,17 @@ def admin_logout():
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
-    users_data = load_users()
-    users = users_data.get("users", [])
-    tasks_data = load_data()
+    conn = get_conn(); cur = conn.cursor()
+    cur.execute("SELECT * FROM users ORDER BY email")
+    users = [dict(r) for r in cur.fetchall()]
+    cur.execute("SELECT COUNT(*) FROM tasks")
+    total_tasks = cur.fetchone()["count"]
+    cur.close(); conn.close()
     stats = {
         "total_users": len(users),
         "pro_users":   sum(1 for u in users if u.get("plan") == "pro"),
         "free_users":  sum(1 for u in users if u.get("plan") != "pro"),
-        "total_tasks": len(tasks_data.get("tasks", [])),
+        "total_tasks": total_tasks,
     }
     return render_template("admin_dashboard.html", users=users, stats=stats)
 

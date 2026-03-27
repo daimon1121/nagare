@@ -3,3 +3,4 @@ flask-mail
 stripe
 werkzeug
 itsdangerous
+psycopg2-binary
