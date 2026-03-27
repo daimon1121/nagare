@@ -57,6 +57,30 @@ tr:hover td{background:rgba(52,73,94,.5)}
               transition:border-color .15s}
 .search-input:focus{border-color:#3498db}
 .count-badge{font-size:12px;color:#7f8c8d}
+
+/* ── Services ── */
+.services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:28px}
+.svc-card{background:#2c3e50;border-radius:10px;padding:16px 20px;display:flex;align-items:flex-start;gap:14px;
+          box-shadow:0 2px 8px rgba(0,0,0,.2);transition:border .15s;border:1px solid transparent}
+.svc-card:hover{border-color:#3498db}
+.svc-icon{font-size:1.5rem;flex-shrink:0;margin-top:2px}
+.svc-name{font-size:14px;font-weight:700;margin-bottom:4px}
+.svc-desc{font-size:12px;color:#7f8c8d;line-height:1.5}
+.svc-link{font-size:11px;color:#3498db;text-decoration:none;margin-top:6px;display:inline-block}
+.svc-link:hover{text-decoration:underline}
+.check-list{background:#2c3e50;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.2);margin-bottom:28px}
+.check-row{display:flex;align-items:center;padding:12px 18px;border-bottom:1px solid #34495e;gap:12px;font-size:13px}
+.check-row:last-child{border-bottom:none}
+.check-svc{width:120px;font-weight:700;flex-shrink:0}
+.check-pt{flex:1;color:#95a5a6}
+.check-tag{font-size:10px;background:#34495e;color:#7f8c8d;padding:2px 8px;border-radius:20px;font-weight:700;flex-shrink:0}
+.env-mono{font-family:monospace;font-size:11px;color:#a78bfa}
+.app-links-row{display:flex;gap:10px;flex-wrap:wrap}
+.app-link-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
+              background:#34495e;border-radius:6px;text-decoration:none;color:#ecf0f1;
+              font-size:12px;font-weight:500;transition:background .15s}
+.app-link-btn:hover{background:#3d566e}
+.table-wrap-mb{margin-bottom:28px}
 </style>
 </head>
 <body>
@@ -129,6 +153,102 @@ tr:hover td{background:rgba(52,73,94,.5)}
         {% endfor %}
       </tbody>
     </table>
+  </div>
+</div>
+
+<!-- Services -->
+<div class="section">
+  <div class="section-title">使用中のサービス</div>
+  <div class="services-grid">
+    <div class="svc-card">
+      <div class="svc-icon">🚀</div>
+      <div>
+        <div class="svc-name">Render</div>
+        <div class="svc-desc">アプリ本体のホスティング・デプロイ。環境変数の管理もここで行う。</div>
+        <a href="https://render.com" target="_blank" rel="noopener" class="svc-link">dashboard →</a>
+      </div>
+    </div>
+    <div class="svc-card">
+      <div class="svc-icon">☁️</div>
+      <div>
+        <div class="svc-name">Cloudflare Pages</div>
+        <div class="svc-desc">ランディングページ（landing/index.html）のホスティング。</div>
+        <a href="https://pages.cloudflare.com" target="_blank" rel="noopener" class="svc-link">dashboard →</a>
+      </div>
+    </div>
+    <div class="svc-card">
+      <div class="svc-icon">💳</div>
+      <div>
+        <div class="svc-name">Stripe</div>
+        <div class="svc-desc">月額課金（Proプラン・500円）、Webhook設定、価格ID発行。</div>
+        <a href="https://dashboard.stripe.com" target="_blank" rel="noopener" class="svc-link">dashboard →</a>
+      </div>
+    </div>
+    <div class="svc-card">
+      <div class="svc-icon">📧</div>
+      <div>
+        <div class="svc-name">Gmail SMTP</div>
+        <div class="svc-desc">パスワードリセットメールの送信。アプリパスワードで認証。</div>
+        <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="svc-link">設定 →</a>
+      </div>
+    </div>
+    <div class="svc-card">
+      <div class="svc-icon">📊</div>
+      <div>
+        <div class="svc-name">Google Analytics</div>
+        <div class="svc-desc">アクセス解析。ID: <span class="env-mono">G-1MHRVYZ2WV</span> を全ページに設置済み。</div>
+        <a href="https://analytics.google.com" target="_blank" rel="noopener" class="svc-link">dashboard →</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">確認すべき設定</div>
+  <div class="check-list">
+    <div class="check-row">
+      <span class="check-svc">Render</span>
+      <span class="check-pt">環境変数（SECRET_KEY, STRIPE_*, MAIL_*, ADMIN_PASSWORD）が設定されているか</span>
+      <span class="check-tag">環境変数</span>
+    </div>
+    <div class="check-row">
+      <span class="check-svc">Stripe</span>
+      <span class="check-pt">Webhookエンドポイント /webhook が登録されているか</span>
+      <span class="check-tag">Webhook</span>
+    </div>
+    <div class="check-row">
+      <span class="check-svc">Gmail</span>
+      <span class="check-pt">アプリパスワードが発行済みか（通常パスワードではNG）</span>
+      <span class="check-tag">認証</span>
+    </div>
+    <div class="check-row">
+      <span class="check-svc">Cloudflare</span>
+      <span class="check-pt">landing/index.html の最新版がデプロイされているか</span>
+      <span class="check-tag">デプロイ</span>
+    </div>
+  </div>
+
+  <div class="section-title">環境変数一覧（Renderに設定するもの）</div>
+  <div class="table-wrap table-wrap-mb">
+    <table>
+      <thead>
+        <tr><th>変数名</th><th>サービス</th><th>用途</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="env-mono">SECRET_KEY</td><td>Flask</td><td>セッション暗号化</td></tr>
+        <tr><td class="env-mono">STRIPE_SECRET_KEY</td><td>Stripe</td><td>決済処理（サーバーサイド）</td></tr>
+        <tr><td class="env-mono">STRIPE_PUBLISHABLE_KEY</td><td>Stripe</td><td>決済処理（フロントエンド）</td></tr>
+        <tr><td class="env-mono">STRIPE_WEBHOOK_SECRET</td><td>Stripe</td><td>Webhook署名検証</td></tr>
+        <tr><td class="env-mono">STRIPE_PRICE_ID</td><td>Stripe</td><td>Proプランの価格ID</td></tr>
+        <tr><td class="env-mono">MAIL_USERNAME</td><td>Gmail</td><td>送信元メールアドレス</td></tr>
+        <tr><td class="env-mono">MAIL_PASSWORD</td><td>Gmail</td><td>アプリパスワード</td></tr>
+        <tr><td class="env-mono">ADMIN_PASSWORD</td><td>Flask</td><td>管理画面ログインパスワード</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-title">アプリURL</div>
+  <div class="app-links-row">
+    <a href="https://taskmanagement-1rss.onrender.com" target="_blank" rel="noopener" class="app-link-btn">🚀 本番アプリ</a>
+    <a href="https://taskmanagement-1rss.onrender.com/admin" target="_blank" rel="noopener" class="app-link-btn">🔐 管理画面</a>
   </div>
 </div>
 
