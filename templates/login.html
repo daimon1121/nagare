@@ -58,16 +58,17 @@ input:focus{border-color:#3498db}
     <input type="password" name="password" required>
     <button type="submit" class="btn" data-i18n="login_btn">ログイン</button>
   </form>
+  <p class="link" style="margin-top:10px"><a href="/forgot-password" style="color:#999;font-size:12px" data-i18n="forgot_link">パスワードをお忘れの方</a></p>
   <p class="link"><span data-i18n="no_account">アカウントをお持ちでない方は</span> <a href="/signup" data-i18n="signup_link">新規登録</a></p>
 </div>
 <script>
 const L={
-  ja:{login_h1:"ログイン",login_sub:"タスク管理アプリへようこそ",email_label:"メールアドレス",password_label:"パスワード",login_btn:"ログイン",no_account:"アカウントをお持ちでない方は",signup_link:"新規登録",login_title:"ログイン - タスク管理"},
-  en:{login_h1:"Login",login_sub:"Welcome to Task Manager",email_label:"Email",password_label:"Password",login_btn:"Login",no_account:"Don't have an account?",signup_link:"Sign up",login_title:"Login - Task Manager"},
-  zh:{login_h1:"登录",login_sub:"欢迎使用任务管理",email_label:"电子邮件",password_label:"密码",login_btn:"登录",no_account:"还没有账户？",signup_link:"注册",login_title:"登录 - 任务管理"},
-  ko:{login_h1:"로그인",login_sub:"작업 관리 앱에 오신 것을 환영합니다",email_label:"이메일",password_label:"비밀번호",login_btn:"로그인",no_account:"계정이 없으신가요?",signup_link:"회원가입",login_title:"로그인 - 작업 관리"},
-  es:{login_h1:"Iniciar sesión",login_sub:"Bienvenido al gestor de tareas",email_label:"Correo electrónico",password_label:"Contraseña",login_btn:"Iniciar sesión",no_account:"¿No tienes cuenta?",signup_link:"Registrarse",login_title:"Iniciar sesión - Gestión de tareas"},
-  fr:{login_h1:"Connexion",login_sub:"Bienvenue sur le gestionnaire de tâches",email_label:"E-mail",password_label:"Mot de passe",login_btn:"Connexion",no_account:"Pas encore de compte ?",signup_link:"S'inscrire",login_title:"Connexion - Gestion des tâches"},
+  ja:{login_h1:"ログイン",login_sub:"タスク管理アプリへようこそ",email_label:"メールアドレス",password_label:"パスワード",login_btn:"ログイン",no_account:"アカウントをお持ちでない方は",signup_link:"新規登録",forgot_link:"パスワードをお忘れの方",login_title:"ログイン - タスク管理"},
+  en:{login_h1:"Login",login_sub:"Welcome to Task Manager",email_label:"Email",password_label:"Password",login_btn:"Login",no_account:"Don't have an account?",signup_link:"Sign up",forgot_link:"Forgot password?",login_title:"Login - Task Manager"},
+  zh:{login_h1:"登录",login_sub:"欢迎使用任务管理",email_label:"电子邮件",password_label:"密码",login_btn:"登录",no_account:"还没有账户？",signup_link:"注册",forgot_link:"忘记密码？",login_title:"登录 - 任务管理"},
+  ko:{login_h1:"로그인",login_sub:"작업 관리 앱에 오신 것을 환영합니다",email_label:"이메일",password_label:"비밀번호",login_btn:"로그인",no_account:"계정이 없으신가요?",signup_link:"회원가입",forgot_link:"비밀번호를 잊으셨나요?",login_title:"로그인 - 작업 관리"},
+  es:{login_h1:"Iniciar sesión",login_sub:"Bienvenido al gestor de tareas",email_label:"Correo electrónico",password_label:"Contraseña",login_btn:"Iniciar sesión",no_account:"¿No tienes cuenta?",signup_link:"Registrarse",forgot_link:"¿Olvidaste tu contraseña?",login_title:"Iniciar sesión - Gestión de tareas"},
+  fr:{login_h1:"Connexion",login_sub:"Bienvenue sur le gestionnaire de tâches",email_label:"E-mail",password_label:"Mot de passe",login_btn:"Connexion",no_account:"Pas encore de compte ?",signup_link:"S'inscrire",forgot_link:"Mot de passe oublié ?",login_title:"Connexion - Gestion des tâches"},
 };
 let _lang=localStorage.getItem("tf_lang")||"ja";
 function applyLang(){

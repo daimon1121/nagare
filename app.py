@@ -2,11 +2,31 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 from datetime import datetime, timedelta
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_mail import Mail, Message
+from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
 import json, os, uuid
 import stripe
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
+
+# ─── Mail ────────────────────────────────────────────────────────────────────
+app.config["MAIL_SERVER"]         = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
+app.config["MAIL_PORT"]           = int(os.environ.get("MAIL_PORT", 587))
+app.config["MAIL_USE_TLS"]        = True
+app.config["MAIL_USERNAME"]       = os.environ.get("MAIL_USERNAME", "")
+app.config["MAIL_PASSWORD"]       = os.environ.get("MAIL_PASSWORD", "")
+app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_USERNAME", "")
+mail = Mail(app)
+
+def _make_reset_token(email):
+    return URLSafeTimedSerializer(app.secret_key).dumps(email, salt="pw-reset")
+
+def _verify_reset_token(token, max_age=3600):
+    try:
+        return URLSafeTimedSerializer(app.secret_key).loads(token, salt="pw-reset", max_age=max_age)
+    except (SignatureExpired, BadSignature):
+        return None
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
@@ -219,6 +239,55 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user  = find_user_by_email(email)
+        if user:
+            token     = _make_reset_token(email)
+            reset_url = url_for("reset_password", token=token, _external=True)
+            try:
+                msg = Message("パスワードリセット - タスク管理", recipients=[email])
+                msg.body = (
+                    f"以下のリンクからパスワードをリセットしてください（有効期限：1時間）\n\n"
+                    f"{reset_url}\n\n"
+                    f"このメールに心当たりがない場合は無視してください。"
+                )
+                mail.send(msg)
+            except Exception:
+                flash("メール送信に失敗しました。しばらく後でお試しください。")
+                return render_template("forgot_password.html")
+        # メールが存在しない場合も同じメッセージ（列挙攻撃防止）
+        flash("登録済みのメールアドレスであれば、リセットリンクを送信しました。")
+        return redirect(url_for("login"))
+    return render_template("forgot_password.html")
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    email = _verify_reset_token(token)
+    if not email:
+        flash("リセットリンクが無効または期限切れです（1時間以内にお使いください）。")
+        return redirect(url_for("forgot_password"))
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm  = request.form.get("confirm", "")
+        if len(password) < 6:
+            flash("パスワードは6文字以上で入力してください。")
+            return render_template("reset_password.html", token=token)
+        if password != confirm:
+            flash("パスワードが一致しません。")
+            return render_template("reset_password.html", token=token)
+        users = load_users()
+        for u in users["users"]:
+            if u["email"] == email:
+                u["password"] = generate_password_hash(password)
+                break
+        save_users(users)
+        flash("パスワードをリセットしました。新しいパスワードでログインしてください。")
+        return redirect(url_for("login"))
+    return render_template("reset_password.html", token=token)
 
 # ─── Pricing / Stripe Routes ─────────────────────────────────────────────────
 
