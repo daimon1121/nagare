@@ -588,6 +588,8 @@ th.col-filtered .filter-btn{color:#2471a3}
     <div class="editor-body">
       <div class="field-label">担当者名 *</div>
       <input type="text" id="fa-name" placeholder="担当者名を入力">
+      <div class="field-label">メールアドレス</div>
+      <input type="email" id="fa-email" placeholder="email@example.com">
       <div class="btn-row">
         <button type="button" class="btn btn-add"    id="a-btn-add"    onclick="addAssignee()">追加</button>
         <button type="button" class="btn btn-update" id="a-btn-update" onclick="updateAssignee()" disabled>更新</button>
@@ -609,6 +611,7 @@ th.col-filtered .filter-btn{color:#2471a3}
         <thead><tr>
           <th onclick="sortAssigneeBy('id')"   data-acol="id"   class="col-tid">ID</th>
           <th onclick="sortAssigneeBy('name')" data-acol="name">担当者名</th>
+          <th onclick="sortAssigneeBy('email')" data-acol="email">メールアドレス</th>
         </tr></thead>
         <tbody id="assignee-tbody"></tbody>
       </table>
@@ -855,17 +858,19 @@ async function loadAssignees() {
   updateAssigneeFilter();
 }
 async function addAssignee() {
-  const name = document.getElementById("fa-name").value.trim();
+  const name  = document.getElementById("fa-name").value.trim();
+  const email = document.getElementById("fa-email").value.trim();
   if (!name) { toast("担当者名を入力してください"); return; }
-  const a = await api("/api/assignees",{method:"POST",body:{name}});
+  const a = await api("/api/assignees",{method:"POST",body:{name,email}});
   assigneeList.push(a); clearAssigneeForm(); renderAssigneeList(); refreshDataLists(); updateAssigneeFilter();
   toast("担当者を追加しました");
 }
 async function updateAssignee() {
   if (!selectedAssigneeId) return;
-  const name = document.getElementById("fa-name").value.trim();
+  const name  = document.getElementById("fa-name").value.trim();
+  const email = document.getElementById("fa-email").value.trim();
   if (!name) { toast("担当者名を入力してください"); return; }
-  const a = await api(`/api/assignees/${selectedAssigneeId}`,{method:"PUT",body:{name}});
+  const a = await api(`/api/assignees/${selectedAssigneeId}`,{method:"PUT",body:{name,email}});
   assigneeList = assigneeList.map(x=>x.id===selectedAssigneeId?a:x);
   renderAssigneeList(); refreshDataLists(); updateAssigneeFilter(); toast("担当者を更新しました");
 }
@@ -880,7 +885,8 @@ async function deleteAssignee() {
 function selectAssignee(id) {
   selectedAssigneeId = id;
   const a = assigneeList.find(x=>x.id===id); if (!a) return;
-  document.getElementById("fa-name").value = a.name;
+  document.getElementById("fa-name").value  = a.name;
+  document.getElementById("fa-email").value = a.email||"";
   document.getElementById("a-btn-add").disabled    = true;
   document.getElementById("a-btn-update").disabled = false;
   document.getElementById("a-btn-delete").disabled = false;
@@ -888,7 +894,8 @@ function selectAssignee(id) {
     r.classList.toggle("selected", +r.dataset.id===id));
 }
 function clearAssigneeForm() {
-  document.getElementById("fa-name").value = "";
+  document.getElementById("fa-name").value  = "";
+  document.getElementById("fa-email").value = "";
   selectedAssigneeId = null;
   document.getElementById("a-btn-add").disabled    = false;
   document.getElementById("a-btn-update").disabled = true;
@@ -906,9 +913,10 @@ function sortAssigneeBy(col) {
 }
 function renderAssigneeList() {
   const q = (document.getElementById("assignee-search")?.value||"").toLowerCase();
-  let list = assigneeList.filter(a=>!q||a.name.toLowerCase().includes(q));
+  let list = assigneeList.filter(a=>!q||a.name.toLowerCase().includes(q)||(a.email||"").toLowerCase().includes(q));
   if (assigneeSortKey) list.sort((a,b)=>{
-    const va=assigneeSortKey==="id"?a.id:a.name, vb=assigneeSortKey==="id"?b.id:b.name;
+    const va=assigneeSortKey==="id"?a.id:(assigneeSortKey==="email"?a.email||"":a.name);
+    const vb=assigneeSortKey==="id"?b.id:(assigneeSortKey==="email"?b.email||"":b.name);
     return assigneeSortAsc?(va<vb?-1:va>vb?1:0):(va<vb?1:va>vb?-1:0);
   });
   document.getElementById("assignee-count").textContent =
@@ -920,7 +928,7 @@ function renderAssigneeList() {
     tr.dataset.id = a.id;
     if (a.id===selectedAssigneeId) tr.classList.add("selected");
     tr.onclick = ()=>selectAssignee(a.id);
-    tr.innerHTML = `<td style="color:#888;font-size:12px">${a.id}</td><td>${esc(a.name)}</td>`;
+    tr.innerHTML = `<td style="color:#888;font-size:12px">${a.id}</td><td>${esc(a.name)}</td><td style="color:#666;font-size:12px">${esc(a.email||"")}</td>`;
     tbody.appendChild(tr);
   }
 }

@@ -47,11 +47,26 @@ _TOOL_BASE = [
 ]
 
 _SAMPLE_ASSIGNEES = [
-    "田中 太郎","鈴木 花子","佐藤 一郎","高橋 美香",
-    "伊藤 健二","渡辺 祐子","山田 修",  "中村 理恵",
-    "小林 拓也","加藤 奈々","吉田 大輔","山口 恵子",
-    "松本 健",  "井上 さくら","木村 誠","林 美穂",
-    "清水 隆",  "山崎 由美", "池田 直樹","橋本 陽子",
+    ("田中 太郎",   "tanaka.taro@example.com"),
+    ("鈴木 花子",   "suzuki.hanako@example.com"),
+    ("佐藤 一郎",   "sato.ichiro@example.com"),
+    ("高橋 美香",   "takahashi.mika@example.com"),
+    ("伊藤 健二",   "ito.kenji@example.com"),
+    ("渡辺 祐子",   "watanabe.yuko@example.com"),
+    ("山田 修",     "yamada.osamu@example.com"),
+    ("中村 理恵",   "nakamura.rie@example.com"),
+    ("小林 拓也",   "kobayashi.takuya@example.com"),
+    ("加藤 奈々",   "kato.nana@example.com"),
+    ("吉田 大輔",   "yoshida.daisuke@example.com"),
+    ("山口 恵子",   "yamaguchi.keiko@example.com"),
+    ("松本 健",     "matsumoto.ken@example.com"),
+    ("井上 さくら", "inoue.sakura@example.com"),
+    ("木村 誠",     "kimura.makoto@example.com"),
+    ("林 美穂",     "hayashi.miho@example.com"),
+    ("清水 隆",     "shimizu.takashi@example.com"),
+    ("山崎 由美",   "yamazaki.yumi@example.com"),
+    ("池田 直樹",   "ikeda.naoki@example.com"),
+    ("橋本 陽子",   "hashimoto.yoko@example.com"),
 ]
 
 # ─── Users ───────────────────────────────────────────────────────────────────
@@ -115,7 +130,7 @@ def load_assignees():
     if os.path.exists(ASSIGNEES_FILE):
         with open(ASSIGNEES_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    assignees = [{"id": i, "name": n} for i, n in enumerate(_SAMPLE_ASSIGNEES, 1)]
+    assignees = [{"id": i, "name": n, "email": e} for i, (n, e) in enumerate(_SAMPLE_ASSIGNEES, 1)]
     data = {"assignees": assignees, "next_id": len(assignees) + 1}
     save_assignees(data)
     return data
@@ -334,9 +349,10 @@ def get_assignees():
 @login_required
 def add_assignee():
     data = load_assignees()
-    name = (request.json or {}).get("name","").strip()
+    body = request.json or {}
+    name = body.get("name","").strip()
     if not name: return jsonify({"error":"name required"}),400
-    a = {"id":data["next_id"],"name":name}
+    a = {"id":data["next_id"],"name":name,"email":body.get("email","").strip()}
     data["next_id"] += 1; data["assignees"].append(a)
     save_assignees(data); return jsonify(a),201
 
@@ -344,9 +360,11 @@ def add_assignee():
 @login_required
 def update_assignee(aid):
     data = load_assignees()
+    body = request.json or {}
     for i,a in enumerate(data["assignees"]):
         if a["id"]==aid:
-            data["assignees"][i]["name"]=(request.json or {}).get("name",a["name"]).strip()
+            data["assignees"][i]["name"]  = body.get("name",a["name"]).strip()
+            data["assignees"][i]["email"] = body.get("email",a.get("email","")).strip()
             save_assignees(data); return jsonify(data["assignees"][i])
     return jsonify({"error":"not found"}),404
 
