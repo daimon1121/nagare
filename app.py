@@ -502,6 +502,47 @@ def api_me():
     u = current_user()
     return jsonify({"email": u["email"], "plan": u["plan"]})
 
+# ─── Admin ───────────────────────────────────────────────────────────────────
+
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("is_admin"):
+            return redirect(url_for("admin_login"))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        if ADMIN_PASSWORD and pw == ADMIN_PASSWORD:
+            session["is_admin"] = True
+            return redirect(url_for("admin_dashboard"))
+        flash("パスワードが正しくありません")
+    return render_template("admin_login.html")
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("is_admin", None)
+    return redirect(url_for("admin_login"))
+
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    users_data = load_users()
+    users = users_data.get("users", [])
+    tasks_data = load_data()
+    stats = {
+        "total_users": len(users),
+        "pro_users":   sum(1 for u in users if u.get("plan") == "pro"),
+        "free_users":  sum(1 for u in users if u.get("plan") != "pro"),
+        "total_tasks": len(tasks_data.get("tasks", [])),
+    }
+    return render_template("admin_dashboard.html", users=users, stats=stats)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
