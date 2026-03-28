@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>サービス一覧</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-bottom: 40px;
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 16px;
+      padding-left: 4px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    .card {
+      background: #1e2330;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .card:hover {
+      border-color: #667eea;
+      transform: translateY(-2px);
+    }
+
+    .icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+
+    .card-body { flex: 1; }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .card-name {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .card-link {
+      font-size: 0.75rem;
+      color: #667eea;
+      text-decoration: none;
+      opacity: 0.8;
+    }
+    .card-link:hover { opacity: 1; text-decoration: underline; }
+
+    .card-desc {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    .checks {
+      background: #1e2330;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 48px;
+    }
+
+    .check-row {
+      display: flex;
+      align-items: center;
+      padding: 14px 24px;
+      border-bottom: 1px solid #2d3748;
+      gap: 12px;
+    }
+
+    .check-row:last-child { border-bottom: none; }
+
+    .check-service {
+      width: 140px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .check-point {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      flex: 1;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 600;
+      background: #2d3748;
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    .env-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1e2330;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .env-table th {
+      background: #252c3d;
+      padding: 12px 20px;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+
+    .env-table td {
+      padding: 12px 20px;
+      font-size: 0.85rem;
+      border-top: 1px solid #2d3748;
+      color: #94a3b8;
+    }
+
+    .env-table td:first-child {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: #a78bfa;
+      font-size: 0.8rem;
+    }
+
+    .env-table td:nth-child(2) {
+      color: #e2e8f0;
+    }
+
+    .app-links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .app-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      background: #1e2330;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #e2e8f0;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .app-link:hover {
+      border-color: #667eea;
+      background: #252c3d;
+    }
+
+    .app-link span { font-size: 1rem; }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: #334155;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <h1>サービス一覧</h1>
+    <p class="subtitle">プロジェクトで使用している外部サービスと設定状況</p>
+
+    <!-- サービスカード -->
+    <p class="section-title">使用中のサービス</p>
+    <div class="cards">
+
+      <div class="card">
+        <div class="icon" style="background:#e8f4fd;">🚀</div>
+        <div class="card-body">
+          <div class="card-header">
+            <span class="card-name">Render</span>
+            <a href="https://render.com" target="_blank" class="card-link">dashboard →</a>
+          </div>
+          <p class="card-desc">アプリ本体のホスティング・デプロイ。環境変数の管理もここで行う。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="icon" style="background:#fff3e0;">☁️</div>
+        <div class="card-body">
+          <div class="card-header">
+            <span class="card-name">Cloudflare Pages</span>
+            <a href="https://pages.cloudflare.com" target="_blank" class="card-link">dashboard →</a>
+          </div>
+          <p class="card-desc">ランディングページ（landing/index.html）のホスティング。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="icon" style="background:#e8f5e9;">💳</div>
+        <div class="card-body">
+          <div class="card-header">
+            <span class="card-name">Stripe</span>
+            <a href="https://dashboard.stripe.com" target="_blank" class="card-link">dashboard →</a>
+          </div>
+          <p class="card-desc">月額課金（Proプラン・500円）、Webhook設定、価格ID発行。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="icon" style="background:#fce4ec;">📧</div>
+        <div class="card-body">
+          <div class="card-header">
+            <span class="card-name">Gmail SMTP</span>
+            <a href="https://myaccount.google.com/apppasswords" target="_blank" class="card-link">設定 →</a>
+          </div>
+          <p class="card-desc">パスワードリセットメールの送信。アプリパスワードで認証。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="icon" style="background:#f3e5f5;">📊</div>
+        <div class="card-body">
+          <div class="card-header">
+            <span class="card-name">Google Analytics</span>
+            <a href="https://analytics.google.com" target="_blank" class="card-link">dashboard →</a>
+          </div>
+          <p class="card-desc">アクセス解析。ID: <code style="color:#a78bfa;font-size:0.8rem;">G-1MHRVYZ2WV</code> を全ページに設置済み。</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 確認ポイント -->
+    <p class="section-title">確認すべき設定</p>
+    <div class="checks">
+      <div class="check-row">
+        <span class="check-service">Render</span>
+        <span class="check-point">環境変数（SECRET_KEY, STRIPE_*, MAIL_*, ADMIN_PASSWORD）が設定されているか</span>
+        <span class="badge">環境変数</span>
+      </div>
+      <div class="check-row">
+        <span class="check-service">Stripe</span>
+        <span class="check-point">Webhookエンドポイント /webhook が登録されているか</span>
+        <span class="badge">Webhook</span>
+      </div>
+      <div class="check-row">
+        <span class="check-service">Gmail</span>
+        <span class="check-point">アプリパスワードが発行済みか（通常パスワードではNG）</span>
+        <span class="badge">認証</span>
+      </div>
+      <div class="check-row">
+        <span class="check-service">Cloudflare</span>
+        <span class="check-point">landing/index.html の最新版がデプロイされているか</span>
+        <span class="badge">デプロイ</span>
+      </div>
+    </div>
+
+    <!-- 環境変数一覧 -->
+    <p class="section-title">環境変数一覧（Renderに設定するもの）</p>
+    <table class="env-table" style="margin-bottom:48px;">
+      <thead>
+        <tr>
+          <th>変数名</th>
+          <th>サービス</th>
+          <th>用途</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>SECRET_KEY</td><td>Flask</td><td>セッション暗号化</td></tr>
+        <tr><td>STRIPE_SECRET_KEY</td><td>Stripe</td><td>決済処理（サーバーサイド）</td></tr>
+        <tr><td>STRIPE_PUBLISHABLE_KEY</td><td>Stripe</td><td>決済処理（フロントエンド）</td></tr>
+        <tr><td>STRIPE_WEBHOOK_SECRET</td><td>Stripe</td><td>Webhook署名検証</td></tr>
+        <tr><td>STRIPE_PRICE_ID</td><td>Stripe</td><td>Proプランの価格ID</td></tr>
+        <tr><td>MAIL_USERNAME</td><td>Gmail</td><td>送信元メールアドレス</td></tr>
+        <tr><td>MAIL_PASSWORD</td><td>Gmail</td><td>アプリパスワード</td></tr>
+        <tr><td>ADMIN_PASSWORD</td><td>Flask</td><td>管理画面ログインパスワード</td></tr>
+      </tbody>
+    </table>
+
+    <!-- アプリURL -->
+    <p class="section-title">アプリURL</p>
+    <div class="app-links">
+      <a href="https://nagare-1rss.onrender.com" target="_blank" class="app-link">
+        <span>🚀</span> 本番アプリ
+      </a>
+      <a href="https://nagare-1rss.onrender.com/admin" target="_blank" class="app-link">
+        <span>🔐</span> 管理画面
+      </a>
+    </div>
+
+    <footer>
+      内部ドキュメント — 社外秘
+    </footer>
+
+  </div>
+</body>
+</html>

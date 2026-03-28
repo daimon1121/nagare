@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>タスク管理</title>
+<title>NAGARE</title>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-1MHRVYZ2WV"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-1MHRVYZ2WV');</script>
@@ -847,7 +847,7 @@ function switchTab(tab) {
   document.querySelectorAll(".tab-btn").forEach(b  => b.classList.remove("active"));
   document.getElementById("tab-" + tab).classList.add("active");
   document.getElementById("tab-btn-" + tab).classList.add("active");
-  if (tab === "task")     { refreshDataLists(); drawGantt(); }
+  if (tab === "task")     { refreshDataLists(); renderTaskList(); drawGantt(); }
   if (tab === "tool")     { renderToolList(); }
   if (tab === "assignee") { renderAssigneeList(); }
 }
@@ -900,9 +900,13 @@ async function updateTool() {
   if (!selectedToolId) return;
   const name = document.getElementById("ft-name").value.trim();
   if (!name) { toast(T("val_tool")); return; }
+  const btn = document.getElementById("t-btn-update");
+  btn.textContent = "更新中…"; btn.disabled = true;
   const t = await api(`/api/tools/${selectedToolId}`, {method:"PUT",body:{name}});
   toolList = toolList.map(x => x.id===selectedToolId ? t : x);
-  renderToolList(); refreshDataLists(); updateToolFilter(); toast(T("msg_upd_tool"));
+  renderToolList(); refreshDataLists(); updateToolFilter();
+  btn.textContent = "更新"; btn.disabled = false;
+  toast(T("msg_upd_tool"));
 }
 async function deleteTool() {
   if (!selectedToolId) return;
@@ -999,9 +1003,17 @@ async function updateAssignee() {
   const name  = document.getElementById("fa-name").value.trim();
   const email = document.getElementById("fa-email").value.trim();
   if (!name) { toast(T("val_asgn")); return; }
+  const btn = document.getElementById("a-btn-update");
+  btn.textContent = "更新中…"; btn.disabled = true;
+  const oldName = assigneeList.find(x=>x.id===selectedAssigneeId)?.name || "";
   const a = await api(`/api/assignees/${selectedAssigneeId}`,{method:"PUT",body:{name,email}});
   assigneeList = assigneeList.map(x=>x.id===selectedAssigneeId?a:x);
-  renderAssigneeList(); refreshDataLists(); updateAssigneeFilter(); toast(T("msg_upd_asgn"));
+  if (oldName && oldName !== name) {
+    tasks = tasks.map(t => t.assignee === oldName ? {...t, assignee: name} : t);
+  }
+  renderAssigneeList(); refreshDataLists(); updateAssigneeFilter(); renderTaskList();
+  btn.textContent = "更新"; btn.disabled = false;
+  toast(T("msg_upd_asgn"));
 }
 async function deleteAssignee() {
   if (!selectedAssigneeId) return;
@@ -1121,11 +1133,15 @@ async function updateTask() {
   if(!selectedTaskId)return;
   const prev=tasks.find(x=>x.id===selectedTaskId);
   const v=taskFormValues(); if(!validateTask(v))return;
+  const btn=document.getElementById("btn-update");
+  btn.textContent="更新中…"; btn.disabled=true;
   const t=await api(`/api/tasks/${selectedTaskId}`,{method:"PUT",body:v});
-  if(t.error){toast(t.message||T("err_generic"));return;}
+  if(t.error){btn.textContent="更新";btn.disabled=false;toast(t.message||T("err_generic"));return;}
   tasks=tasks.map(x=>x.id===selectedTaskId?t:x);
   if(t.status==="完了" && prev?.status!=="完了") beepComplete();
-  renderTaskList(); drawGantt(); toast(T("msg_upd_task"));
+  renderTaskList(); drawGantt();
+  btn.textContent="更新"; btn.disabled=false;
+  toast(T("msg_upd_task"));
 }
 async function deleteTask() {
   if(!selectedTaskId)return;

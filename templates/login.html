@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title data-i18n-title="login_title">ログイン - タスク管理</title>
+<title data-i18n-title="login_title">ログイン - NAGARE</title>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-1MHRVYZ2WV"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-1MHRVYZ2WV');</script>
@@ -43,7 +43,7 @@ input:focus{border-color:#3498db}
     </select>
   </div>
   <h1 data-i18n="login_h1">ログイン</h1>
-  <p class="subtitle" data-i18n="login_sub">タスク管理アプリへようこそ</p>
+  <p class="subtitle" data-i18n="login_sub">NAGAREへようこそ</p>
   {% with messages = get_flashed_messages() %}
     {% if messages %}
       {% for msg in messages %}
@@ -63,7 +63,7 @@ input:focus{border-color:#3498db}
 </div>
 <script>
 const L={
-  ja:{login_h1:"ログイン",login_sub:"タスク管理アプリへようこそ",email_label:"メールアドレス",password_label:"パスワード",login_btn:"ログイン",no_account:"アカウントをお持ちでない方は",signup_link:"新規登録",forgot_link:"パスワードをお忘れの方",login_title:"ログイン - タスク管理"},
+  ja:{login_h1:"ログイン",login_sub:"NAGAREへようこそ",email_label:"メールアドレス",password_label:"パスワード",login_btn:"ログイン",no_account:"アカウントをお持ちでない方は",signup_link:"新規登録",forgot_link:"パスワードをお忘れの方",login_title:"ログイン - NAGARE"},
   en:{login_h1:"Login",login_sub:"Welcome to Task Manager",email_label:"Email",password_label:"Password",login_btn:"Login",no_account:"Don't have an account?",signup_link:"Sign up",forgot_link:"Forgot password?",login_title:"Login - Task Manager"},
   zh:{login_h1:"登录",login_sub:"欢迎使用任务管理",email_label:"电子邮件",password_label:"密码",login_btn:"登录",no_account:"还没有账户？",signup_link:"注册",forgot_link:"忘记密码？",login_title:"登录 - 任务管理"},
   ko:{login_h1:"로그인",login_sub:"작업 관리 앱에 오신 것을 환영합니다",email_label:"이메일",password_label:"비밀번호",login_btn:"로그인",no_account:"계정이 없으신가요?",signup_link:"회원가입",forgot_link:"비밀번호를 잊으셨나요?",login_title:"로그인 - 작업 관리"},

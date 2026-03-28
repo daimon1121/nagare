@@ -1,51 +1,84 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, flash
+from dotenv import load_dotenv; load_dotenv()
+
+import os
+import re
+import uuid
+from collections import Counter
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from functools import wraps
-from werkzeug.security import generate_password_hash, check_password_hash
-from flask_mail import Mail, Message
-from itsdangerous import URLSafeTimedSerializer, SignatureExpired, BadSignature
-import os, uuid, stripe
+
 import psycopg2
 import psycopg2.extras
+import stripe
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from flask_mail import Mail, Message
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from werkzeug.security import check_password_hash, generate_password_hash
 
+# ─── App & Config ─────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
-# ─── Mail ────────────────────────────────────────────────────────────────────
-app.config["MAIL_SERVER"]         = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
-app.config["MAIL_PORT"]           = int(os.environ.get("MAIL_PORT", 587))
-app.config["MAIL_USE_TLS"]        = True
-app.config["MAIL_USERNAME"]       = os.environ.get("MAIL_USERNAME", "")
-app.config["MAIL_PASSWORD"]       = os.environ.get("MAIL_PASSWORD", "")
-app.config["MAIL_DEFAULT_SENDER"] = os.environ.get("MAIL_USERNAME", "")
+app.config.update(
+    MAIL_SERVER        = os.environ.get("MAIL_SERVER", "smtp.gmail.com"),
+    MAIL_PORT          = int(os.environ.get("MAIL_PORT", 587)),
+    MAIL_USE_TLS       = True,
+    MAIL_USERNAME      = os.environ.get("MAIL_USERNAME", ""),
+    MAIL_PASSWORD      = os.environ.get("MAIL_PASSWORD", ""),
+    MAIL_DEFAULT_SENDER= os.environ.get("MAIL_USERNAME", ""),
+)
 mail = Mail(app)
 
-def _make_reset_token(email):
-    return URLSafeTimedSerializer(app.secret_key).dumps(email, salt="pw-reset")
-
-def _verify_reset_token(token, max_age=3600):
-    try:
-        return URLSafeTimedSerializer(app.secret_key).loads(token, salt="pw-reset", max_age=max_age)
-    except (SignatureExpired, BadSignature):
-        return None
-
-stripe.api_key             = os.environ.get("STRIPE_SECRET_KEY", "")
-STRIPE_PUBLISHABLE_KEY     = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
-STRIPE_WEBHOOK_SECRET      = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
-STRIPE_PRICE_ID            = os.environ.get("STRIPE_PRICE_ID", "")
+stripe.api_key         = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET  = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PRICE_ID        = os.environ.get("STRIPE_PRICE_ID", "")
+ADMIN_PASSWORD         = os.environ.get("ADMIN_PASSWORD", "")
 
 FREE_TASK_LIMIT = 10
-TOOLS_VER = 2
+TOOLS_VER       = 2
 
-# ─── Database ────────────────────────────────────────────────────────────────
-_DATABASE_URL = os.environ.get("DATABASE_URL", "")
-if _DATABASE_URL.startswith("postgres://"):
-    _DATABASE_URL = _DATABASE_URL.replace("postgres://", "postgresql://", 1)
+# ─── Database ─────────────────────────────────────────────────────────────────
+_DATABASE_URL = os.environ.get("DATABASE_URL", "").replace("postgres://", "postgresql://", 1)
 
-def get_conn():
-    return psycopg2.connect(_DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+@contextmanager
+def get_db():
+    conn = psycopg2.connect(_DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+    cur  = conn.cursor()
+    try:
+        yield conn, cur
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
 
-# ─── Tool base names ──────────────────────────────────────────────────────────
+# ─── Seed Data ────────────────────────────────────────────────────────────────
+_SAMPLE_ASSIGNEES = [
+    ("田中 太郎",   "t.tanaka@nexwave.co.jp"),
+    ("鈴木 花子",   "h.suzuki@nexwave.co.jp"),
+    ("佐藤 一郎",   "i.sato@nexwave.co.jp"),
+    ("高橋 美香",   "m.takahashi@nexwave.co.jp"),
+    ("伊藤 健二",   "k.ito@nexwave.co.jp"),
+    ("渡辺 祐子",   "y.watanabe@nexwave.co.jp"),
+    ("山田 修",     "o.yamada@nexwave.co.jp"),
+    ("中村 理恵",   "r.nakamura@nexwave.co.jp"),
+    ("小林 拓也",   "t.kobayashi@dev.nexwave.co.jp"),
+    ("加藤 奈々",   "n.kato@dev.nexwave.co.jp"),
+    ("吉田 大輔",   "d.yoshida@dev.nexwave.co.jp"),
+    ("山口 恵子",   "k.yamaguchi@design.nexwave.co.jp"),
+    ("松本 健",     "k.matsumoto@infra.nexwave.co.jp"),
+    ("井上 さくら", "s.inoue@infra.nexwave.co.jp"),
+    ("木村 誠",     "m.kimura@qa.nexwave.co.jp"),
+    ("林 美穂",     "m.hayashi@qa.nexwave.co.jp"),
+    ("清水 隆",     "t.shimizu@biz.nexwave.co.jp"),
+    ("山崎 由美",   "y.yamazaki@biz.nexwave.co.jp"),
+    ("池田 直樹",   "n.ikeda@pm.nexwave.co.jp"),
+    ("橋本 陽子",   "y.hashimoto@pm.nexwave.co.jp"),
+]
+
 _TOOL_BASE = [
     "GitHub","GitLab","Bitbucket","Jira","Confluence",
     "Trello","Asana","Notion","Monday.com","ClickUp",
@@ -70,134 +103,109 @@ _TOOL_BASE = [
     "PowerPoint","Google Sheets","Google Docs",
 ]
 
-_SAMPLE_ASSIGNEES = [
-    ("田中 太郎",   "t.tanaka@nexwave.co.jp"),
-    ("鈴木 花子",   "h.suzuki@nexwave.co.jp"),
-    ("佐藤 一郎",   "i.sato@nexwave.co.jp"),
-    ("高橋 美香",   "m.takahashi@nexwave.co.jp"),
-    ("伊藤 健二",   "k.ito@nexwave.co.jp"),
-    ("渡辺 祐子",   "y.watanabe@nexwave.co.jp"),
-    ("山田 修",     "o.yamada@nexwave.co.jp"),
-    ("中村 理恵",   "r.nakamura@nexwave.co.jp"),
-    ("小林 拓也",   "t.kobayashi@dev.nexwave.co.jp"),
-    ("加藤 奈々",   "n.kato@dev.nexwave.co.jp"),
-    ("吉田 大輔",   "d.yoshida@dev.nexwave.co.jp"),
-    ("山口 恵子",   "k.yamaguchi@design.nexwave.co.jp"),
-    ("松本 健",     "k.matsumoto@infra.nexwave.co.jp"),
-    ("井上 さくら", "s.inoue@infra.nexwave.co.jp"),
-    ("木村 誠",     "m.kimura@qa.nexwave.co.jp"),
-    ("林 美穂",     "m.hayashi@qa.nexwave.co.jp"),
-    ("清水 隆",     "t.shimizu@biz.nexwave.co.jp"),
-    ("山崎 由美",   "y.yamazaki@biz.nexwave.co.jp"),
-    ("池田 直樹",   "n.ikeda@pm.nexwave.co.jp"),
-    ("橋本 陽子",   "y.hashimoto@pm.nexwave.co.jp"),
-]
-
-# ─── DB Init ─────────────────────────────────────────────────────────────────
+# ─── DB Init ──────────────────────────────────────────────────────────────────
 def init_db():
-    conn = get_conn()
-    cur  = conn.cursor()
+    with get_db() as (conn, cur):
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id                     VARCHAR(36)  PRIMARY KEY,
+                email                  VARCHAR(255) UNIQUE NOT NULL,
+                password               VARCHAR(255) NOT NULL,
+                plan                   VARCHAR(20)  DEFAULT 'free',
+                stripe_customer_id     VARCHAR(255),
+                stripe_subscription_id VARCHAR(255)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tasks (
+                id                  SERIAL PRIMARY KEY,
+                name                VARCHAR(500),
+                request_date        VARCHAR(20),
+                start_date          VARCHAR(20),
+                distribution_date   VARCHAR(20),
+                end_date            VARCHAR(20),
+                status              VARCHAR(50),
+                priority            VARCHAR(20),
+                tool                VARCHAR(200),
+                assignee            VARCHAR(200),
+                description         TEXT,
+                implementation_date VARCHAR(20)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS assignees (
+                id    SERIAL PRIMARY KEY,
+                name  VARCHAR(200) NOT NULL,
+                email VARCHAR(255)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tools (
+                id   SERIAL PRIMARY KEY,
+                name VARCHAR(200) NOT NULL
+            )
+        """)
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id                    VARCHAR(36)  PRIMARY KEY,
-            email                 VARCHAR(255) UNIQUE NOT NULL,
-            password              VARCHAR(255) NOT NULL,
-            plan                  VARCHAR(20)  DEFAULT 'free',
-            stripe_customer_id    VARCHAR(255),
-            stripe_subscription_id VARCHAR(255)
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS tasks (
-            id                  SERIAL PRIMARY KEY,
-            name                VARCHAR(500),
-            request_date        VARCHAR(20),
-            start_date          VARCHAR(20),
-            distribution_date   VARCHAR(20),
-            end_date            VARCHAR(20),
-            status              VARCHAR(50),
-            priority            VARCHAR(20),
-            tool                VARCHAR(200),
-            assignee            VARCHAR(200),
-            description         TEXT,
-            implementation_date VARCHAR(20)
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS assignees (
-            id    SERIAL PRIMARY KEY,
-            name  VARCHAR(200) NOT NULL,
-            email VARCHAR(255)
-        )
-    """)
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS tools (
-            id   SERIAL PRIMARY KEY,
-            name VARCHAR(200) NOT NULL
-        )
-    """)
+        cur.execute("SELECT COUNT(*) FROM assignees")
+        if cur.fetchone()["count"] == 0:
+            for name, email in _SAMPLE_ASSIGNEES:
+                cur.execute("INSERT INTO assignees (name, email) VALUES (%s, %s)", (name, email))
 
-    # Seed assignees
-    cur.execute("SELECT COUNT(*) FROM assignees")
-    if cur.fetchone()["count"] == 0:
-        for name, email in _SAMPLE_ASSIGNEES:
-            cur.execute("INSERT INTO assignees (name, email) VALUES (%s, %s)", (name, email))
+        cur.execute("SELECT COUNT(*) FROM tools")
+        if cur.fetchone()["count"] == 0:
+            tool_names = [f"{i:03d}_{b}" for i, b in enumerate(_TOOL_BASE, 1)]
+            for i in range(len(_TOOL_BASE) + 1, 301):
+                tool_names.append(f"{i:03d}_ツール")
+            for name in tool_names:
+                cur.execute("INSERT INTO tools (name) VALUES (%s)", (name,))
 
-    # Seed tools
-    cur.execute("SELECT COUNT(*) FROM tools")
-    if cur.fetchone()["count"] == 0:
-        tool_names = [f"{i:03d}_{b}" for i, b in enumerate(_TOOL_BASE, 1)]
-        for i in range(len(_TOOL_BASE) + 1, 301):
-            tool_names.append(f"{i:03d}_ツール")
-        for name in tool_names:
-            cur.execute("INSERT INTO tools (name) VALUES (%s)", (name,))
-
-    # Seed tasks
-    cur.execute("SELECT COUNT(*) FROM tasks")
-    if cur.fetchone()["count"] == 0:
-        today = datetime.now()
-        def d(n): return (today + timedelta(days=n)).strftime("%Y-%m-%d")
-        rows = [
-            ("要件定義・仕様策定",    d(-23),d(-20),d(-13),d(-11),"完了",  "高","005_Confluence","田中 太郎","ステークホルダーへのヒアリング完了。"),
-            ("UI/UXデザイン",         d(-17),d(-14),d(-5), d(-3), "完了",  "高","015_Figma",     "鈴木 花子","ワイヤーフレーム・プロトタイプを作成。"),
-            ("データベース設計",       d(-12),d(-10),d(-4), d(-2), "完了",  "中","039_PostgreSQL","佐藤 一郎","ER図・テーブル定義書を作成。"),
-            ("バックエンド開発",       d(-8), d(-5), d(9),  d(12), "進行中","高","001_GitHub",    "伊藤 健二","REST API実装中。"),
-            ("フロントエンド開発",     d(-5), d(-2), d(12), d(15), "進行中","高","073_React",     "渡辺 祐子","コンポーネント実装中。"),
-            ("単体テスト",             d(5),  d(8),  d(15), d(18), "未着手","中","095_Sonarqube", "山田 修",  "ユニットテストを実施予定。"),
-            ("結合テスト",             d(13), d(16), d(22), d(25), "未着手","高","056_Postman",   "高橋 美香","API連携・画面遷移の総合確認。"),
-            ("パフォーマンス改善",     d(7),  d(10), d(17), d(20), "未着手","低","051_Datadog",   "佐藤 一郎","ボトルネック分析後に対応。"),
-            ("ドキュメント整備",       d(15), d(18), d(25), d(28), "未着手","低","005_Confluence","中村 理恵","APIドキュメント・運用手順書の作成。"),
-            ("本番リリース準備",       d(21), d(24), d(27), d(30), "未着手","高","028_Terraform", "田中 太郎","インフラ構築・監視設定。"),
-        ]
-        for name,rq,s,di,e,status,pri,tool,assignee,desc in rows:
-            cur.execute("""
-                INSERT INTO tasks (name,request_date,start_date,distribution_date,end_date,
-                                   status,priority,tool,assignee,description)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """, (name,rq,s,di,e,status,pri,tool,assignee,desc))
-
-    conn.commit()
-    cur.close()
-    conn.close()
+        cur.execute("SELECT COUNT(*) FROM tasks")
+        if cur.fetchone()["count"] == 0:
+            today = datetime.now()
+            def d(n): return (today + timedelta(days=n)).strftime("%Y-%m-%d")
+            rows = [
+                ("要件定義・仕様策定",d(-23),d(-20),d(-13),d(-11),"完了",  "高","005_Confluence","田中 太郎","ステークホルダーへのヒアリング完了。"),
+                ("UI/UXデザイン",     d(-17),d(-14),d(-5), d(-3), "完了",  "高","015_Figma",     "鈴木 花子","ワイヤーフレーム・プロトタイプを作成。"),
+                ("データベース設計",  d(-12),d(-10),d(-4), d(-2), "完了",  "中","039_PostgreSQL","佐藤 一郎","ER図・テーブル定義書を作成。"),
+                ("バックエンド開発",  d(-8), d(-5), d(9),  d(12), "進行中","高","001_GitHub",    "伊藤 健二","REST API実装中。"),
+                ("フロントエンド開発",d(-5), d(-2), d(12), d(15), "進行中","高","073_React",     "渡辺 祐子","コンポーネント実装中。"),
+                ("単体テスト",        d(5),  d(8),  d(15), d(18), "未着手","中","095_Sonarqube", "山田 修",  "ユニットテストを実施予定。"),
+                ("結合テスト",        d(13), d(16), d(22), d(25), "未着手","高","056_Postman",   "高橋 美香","API連携・画面遷移の総合確認。"),
+                ("パフォーマンス改善",d(7),  d(10), d(17), d(20), "未着手","低","051_Datadog",   "佐藤 一郎","ボトルネック分析後に対応。"),
+                ("ドキュメント整備",  d(15), d(18), d(25), d(28), "未着手","低","005_Confluence","中村 理恵","APIドキュメント・運用手順書の作成。"),
+                ("本番リリース準備",  d(21), d(24), d(27), d(30), "未着手","高","028_Terraform", "田中 太郎","インフラ構築・監視設定。"),
+            ]
+            for name,rq,s,di,e,status,pri,tool,assignee,desc in rows:
+                cur.execute("""
+                    INSERT INTO tasks (name,request_date,start_date,distribution_date,end_date,
+                                       status,priority,tool,assignee,description)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, (name,rq,s,di,e,status,pri,tool,assignee,desc))
 
 with app.app_context():
     if _DATABASE_URL:
         init_db()
 
-# ─── Users ───────────────────────────────────────────────────────────────────
+# ─── Auth Helpers ─────────────────────────────────────────────────────────────
+def _make_reset_token(email):
+    return URLSafeTimedSerializer(app.secret_key).dumps(email, salt="pw-reset")
+
+def _verify_reset_token(token, max_age=3600):
+    try:
+        return URLSafeTimedSerializer(app.secret_key).loads(token, salt="pw-reset", max_age=max_age)
+    except (SignatureExpired, BadSignature):
+        return None
+
 def find_user_by_email(email):
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE email=%s", (email,))
-    row = cur.fetchone()
-    cur.close(); conn.close()
+    with get_db() as (_, cur):
+        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
+        row = cur.fetchone()
     return dict(row) if row else None
 
 def find_user_by_id(uid):
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM users WHERE id=%s", (uid,))
-    row = cur.fetchone()
-    cur.close(); conn.close()
+    with get_db() as (_, cur):
+        cur.execute("SELECT * FROM users WHERE id=%s", (uid,))
+        row = cur.fetchone()
     return dict(row) if row else None
 
 def current_user():
@@ -216,37 +224,40 @@ def is_pro():
     u = current_user()
     return u and u.get("plan") == "pro"
 
-# ─── Tools ───────────────────────────────────────────────────────────────────
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("is_admin"):
+            return redirect(url_for("admin_login"))
+        return f(*args, **kwargs)
+    return decorated
+
+# ─── Data Access ──────────────────────────────────────────────────────────────
+def load_data():
+    with get_db() as (_, cur):
+        cur.execute("SELECT * FROM tasks ORDER BY id")
+        tasks = [dict(r) for r in cur.fetchall()]
+    next_id = (max(t["id"] for t in tasks) + 1) if tasks else 1
+    return {"tasks": tasks, "next_id": next_id}
+
 def load_tools():
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM tools ORDER BY id")
-    tools = [dict(r) for r in cur.fetchall()]
+    with get_db() as (_, cur):
+        cur.execute("SELECT * FROM tools ORDER BY id")
+        tools = [dict(r) for r in cur.fetchall()]
     next_id = (max(t["id"] for t in tools) + 1) if tools else 1
-    cur.close(); conn.close()
     return {"version": TOOLS_VER, "tools": tools, "next_id": next_id}
 
-# ─── Assignees ───────────────────────────────────────────────────────────────
 def load_assignees():
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM assignees ORDER BY id")
-    assignees = [dict(r) for r in cur.fetchall()]
+    with get_db() as (_, cur):
+        cur.execute("SELECT * FROM assignees ORDER BY id")
+        assignees = [dict(r) for r in cur.fetchall()]
     next_id = (max(a["id"] for a in assignees) + 1) if assignees else 1
-    cur.close(); conn.close()
     return {"assignees": assignees, "next_id": next_id}
-
-# ─── Tasks ───────────────────────────────────────────────────────────────────
-def load_data():
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM tasks ORDER BY id")
-    tasks = [dict(r) for r in cur.fetchall()]
-    next_id = (max(t["id"] for t in tasks) + 1) if tasks else 1
-    cur.close(); conn.close()
-    return {"tasks": tasks, "next_id": next_id}
 
 def _composite_key(t):
     return (t.get("assignee",""), t.get("tool",""), t.get("name",""), t.get("implementation_date",""))
 
-# ─── Auth Routes ─────────────────────────────────────────────────────────────
+# ─── Auth Routes ──────────────────────────────────────────────────────────────
 @app.route("/signup", methods=["GET","POST"])
 def signup():
     if request.method == "POST":
@@ -259,12 +270,11 @@ def signup():
             flash("このメールアドレスはすでに登録されています")
             return render_template("signup.html")
         uid = str(uuid.uuid4())
-        conn = get_conn(); cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO users (id,email,password,plan) VALUES (%s,%s,%s,'free')",
-            (uid, email, generate_password_hash(password))
-        )
-        conn.commit(); cur.close(); conn.close()
+        with get_db() as (_, cur):
+            cur.execute(
+                "INSERT INTO users (id,email,password,plan) VALUES (%s,%s,%s,'free')",
+                (uid, email, generate_password_hash(password))
+            )
         session["user_id"] = uid
         return redirect(url_for("index"))
     return render_template("signup.html")
@@ -296,7 +306,7 @@ def forgot_password():
             token     = _make_reset_token(email)
             reset_url = url_for("reset_password", token=token, _external=True)
             try:
-                msg = Message("パスワードリセット - タスク管理", recipients=[email])
+                msg = Message("パスワードリセット - NAGARE", recipients=[email])
                 msg.body = (
                     f"以下のリンクからパスワードをリセットしてください（有効期限：1時間）\n\n"
                     f"{reset_url}\n\n"
@@ -325,25 +335,23 @@ def reset_password(token):
         if password != confirm:
             flash("パスワードが一致しません。")
             return render_template("reset_password.html", token=token)
-        conn = get_conn(); cur = conn.cursor()
-        cur.execute("UPDATE users SET password=%s WHERE email=%s",
-                    (generate_password_hash(password), email))
-        conn.commit(); cur.close(); conn.close()
+        with get_db() as (_, cur):
+            cur.execute("UPDATE users SET password=%s WHERE email=%s",
+                        (generate_password_hash(password), email))
         flash("パスワードをリセットしました。新しいパスワードでログインしてください。")
         return redirect(url_for("login"))
     return render_template("reset_password.html", token=token)
 
-# ─── Pricing / Stripe Routes ──────────────────────────────────────────────────
+# ─── Stripe / Pricing Routes ──────────────────────────────────────────────────
 @app.route("/pricing")
 @login_required
 def pricing():
-    u = current_user()
-    return render_template("pricing.html", user=u, stripe_key=STRIPE_PUBLISHABLE_KEY)
+    return render_template("pricing.html", user=current_user(), stripe_key=STRIPE_PUBLISHABLE_KEY)
 
 @app.route("/create-checkout-session", methods=["POST"])
 @login_required
 def create_checkout_session():
-    u = current_user()
+    u        = current_user()
     base_url = request.host_url.rstrip("/")
     try:
         checkout = stripe.checkout.Session.create(
@@ -368,8 +376,7 @@ def payment_success():
         try:
             checkout = stripe.checkout.Session.retrieve(session_id)
             _upgrade_user(checkout.metadata.get("user_id"),
-                          checkout.customer,
-                          checkout.subscription)
+                          checkout.customer, checkout.subscription)
         except Exception:
             pass
     return render_template("success.html")
@@ -393,22 +400,20 @@ def webhook():
 def _upgrade_user(user_id, customer_id, subscription_id):
     if not user_id:
         return
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("""
-        UPDATE users SET plan='pro', stripe_customer_id=%s, stripe_subscription_id=%s
-        WHERE id=%s
-    """, (customer_id, subscription_id, user_id))
-    conn.commit(); cur.close(); conn.close()
+    with get_db() as (_, cur):
+        cur.execute("""
+            UPDATE users SET plan='pro', stripe_customer_id=%s, stripe_subscription_id=%s
+            WHERE id=%s
+        """, (customer_id, subscription_id, user_id))
 
 def _downgrade_by_subscription(subscription_id):
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("""
-        UPDATE users SET plan='free', stripe_subscription_id=NULL
-        WHERE stripe_subscription_id=%s
-    """, (subscription_id,))
-    conn.commit(); cur.close(); conn.close()
+    with get_db() as (_, cur):
+        cur.execute("""
+            UPDATE users SET plan='free', stripe_subscription_id=NULL
+            WHERE stripe_subscription_id=%s
+        """, (subscription_id,))
 
-# ─── Routes: Tools ───────────────────────────────────────────────────────────
+# ─── API: Tools ───────────────────────────────────────────────────────────────
 @app.route("/api/tools", methods=["GET"])
 @login_required
 def get_tools():
@@ -418,33 +423,32 @@ def get_tools():
 @login_required
 def add_tool():
     name = (request.json or {}).get("name","").strip()
-    if not name: return jsonify({"error":"name required"}), 400
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("INSERT INTO tools (name) VALUES (%s) RETURNING id", (name,))
-    tool_id = cur.fetchone()["id"]
-    conn.commit(); cur.close(); conn.close()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    with get_db() as (_, cur):
+        cur.execute("INSERT INTO tools (name) VALUES (%s) RETURNING id", (name,))
+        tool_id = cur.fetchone()["id"]
     return jsonify({"id": tool_id, "name": name}), 201
 
 @app.route("/api/tools/<int:tool_id>", methods=["PUT"])
 @login_required
 def update_tool(tool_id):
     name = (request.json or {}).get("name","").strip()
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("UPDATE tools SET name=%s WHERE id=%s RETURNING *", (name, tool_id))
-    row = cur.fetchone()
-    conn.commit(); cur.close(); conn.close()
-    if not row: return jsonify({"error":"not found"}), 404
+    with get_db() as (_, cur):
+        cur.execute("UPDATE tools SET name=%s WHERE id=%s RETURNING *", (name, tool_id))
+        row = cur.fetchone()
+    if not row:
+        return jsonify({"error": "not found"}), 404
     return jsonify(dict(row))
 
 @app.route("/api/tools/<int:tool_id>", methods=["DELETE"])
 @login_required
 def delete_tool(tool_id):
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("DELETE FROM tools WHERE id=%s", (tool_id,))
-    conn.commit(); cur.close(); conn.close()
+    with get_db() as (_, cur):
+        cur.execute("DELETE FROM tools WHERE id=%s", (tool_id,))
     return jsonify({"ok": True})
 
-# ─── Routes: Assignees ────────────────────────────────────────────────────────
+# ─── API: Assignees ───────────────────────────────────────────────────────────
 @app.route("/api/assignees", methods=["GET"])
 @login_required
 def get_assignees():
@@ -453,44 +457,47 @@ def get_assignees():
 @app.route("/api/assignees", methods=["POST"])
 @login_required
 def add_assignee():
-    body = request.json or {}
-    name = body.get("name","").strip()
-    if not name: return jsonify({"error":"name required"}), 400
+    body  = request.json or {}
+    name  = body.get("name","").strip()
     email = body.get("email","").strip()
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("INSERT INTO assignees (name,email) VALUES (%s,%s) RETURNING id", (name, email))
-    aid = cur.fetchone()["id"]
-    conn.commit(); cur.close(); conn.close()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    with get_db() as (_, cur):
+        cur.execute("INSERT INTO assignees (name,email) VALUES (%s,%s) RETURNING id", (name, email))
+        aid = cur.fetchone()["id"]
     return jsonify({"id": aid, "name": name, "email": email}), 201
 
 @app.route("/api/assignees/<int:aid>", methods=["PUT"])
 @login_required
 def update_assignee(aid):
-    body = request.json or {}
+    body  = request.json or {}
     name  = body.get("name","").strip()
     email = body.get("email","").strip()
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("UPDATE assignees SET name=%s, email=%s WHERE id=%s RETURNING *",
-                (name, email, aid))
-    row = cur.fetchone()
-    conn.commit(); cur.close(); conn.close()
-    if not row: return jsonify({"error":"not found"}), 404
+    with get_db() as (conn, cur):
+        cur.execute("SELECT name FROM assignees WHERE id=%s", (aid,))
+        existing = cur.fetchone()
+        if not existing:
+            return jsonify({"error": "not found"}), 404
+        old_name = existing["name"]
+        cur.execute("UPDATE assignees SET name=%s, email=%s WHERE id=%s RETURNING *",
+                    (name, email, aid))
+        row = cur.fetchone()
+        if old_name != name:
+            cur.execute("UPDATE tasks SET assignee=%s WHERE assignee=%s", (name, old_name))
     return jsonify(dict(row))
 
 @app.route("/api/assignees/<int:aid>", methods=["DELETE"])
 @login_required
 def delete_assignee(aid):
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("DELETE FROM assignees WHERE id=%s", (aid,))
-    conn.commit(); cur.close(); conn.close()
+    with get_db() as (_, cur):
+        cur.execute("DELETE FROM assignees WHERE id=%s", (aid,))
     return jsonify({"ok": True})
 
-# ─── Routes: Tasks ────────────────────────────────────────────────────────────
+# ─── API: Tasks ───────────────────────────────────────────────────────────────
 @app.route("/")
 @login_required
 def index():
-    u = current_user()
-    return render_template("index.html", user=u, is_pro=is_pro())
+    return render_template("index.html", user=current_user(), is_pro=is_pro())
 
 @app.route("/api/tasks", methods=["GET"])
 @login_required
@@ -502,25 +509,25 @@ def get_tasks():
 def add_task():
     data = load_data()
     if not is_pro() and len(data["tasks"]) >= FREE_TASK_LIMIT:
-        return jsonify({"error":"plan_limit",
-                        "message":f"無料プランはタスク{FREE_TASK_LIMIT}件までです。Proにアップグレードしてください。"}), 403
+        return jsonify({"error": "plan_limit",
+                        "message": f"無料プランはタスク{FREE_TASK_LIMIT}件までです。Proにアップグレードしてください。"}), 403
     task = request.json
     key  = _composite_key(task)
     if any(_composite_key(t) == key for t in data["tasks"]):
-        return jsonify({"error":"duplicate","message":"同じ担当者・Tool・タスク名・実施日の組み合わせがすでに存在します"}), 409
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO tasks (name,request_date,start_date,distribution_date,end_date,
-                           status,priority,tool,assignee,description,implementation_date)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
-    """, (
-        task.get("name"), task.get("request_date"), task.get("start_date"),
-        task.get("distribution_date"), task.get("end_date"), task.get("status"),
-        task.get("priority"), task.get("tool"), task.get("assignee"),
-        task.get("description"), task.get("implementation_date"),
-    ))
-    task["id"] = cur.fetchone()["id"]
-    conn.commit(); cur.close(); conn.close()
+        return jsonify({"error": "duplicate",
+                        "message": "同じ担当者・Tool・タスク名・実施日の組み合わせがすでに存在します"}), 409
+    with get_db() as (_, cur):
+        cur.execute("""
+            INSERT INTO tasks (name,request_date,start_date,distribution_date,end_date,
+                               status,priority,tool,assignee,description,implementation_date)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (
+            task.get("name"), task.get("request_date"), task.get("start_date"),
+            task.get("distribution_date"), task.get("end_date"), task.get("status"),
+            task.get("priority"), task.get("tool"), task.get("assignee"),
+            task.get("description"), task.get("implementation_date"),
+        ))
+        task["id"] = cur.fetchone()["id"]
     return jsonify(task), 201
 
 @app.route("/api/tasks/<int:task_id>", methods=["PUT"])
@@ -530,30 +537,30 @@ def update_task(task_id):
     task = request.json
     key  = _composite_key(task)
     if any(_composite_key(t) == key and t["id"] != task_id for t in data["tasks"]):
-        return jsonify({"error":"duplicate","message":"同じ担当者・Tool・タスク名・実施日の組み合わせがすでに存在します"}), 409
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("""
-        UPDATE tasks SET name=%s,request_date=%s,start_date=%s,distribution_date=%s,
-                         end_date=%s,status=%s,priority=%s,tool=%s,assignee=%s,
-                         description=%s,implementation_date=%s
-        WHERE id=%s RETURNING *
-    """, (
-        task.get("name"), task.get("request_date"), task.get("start_date"),
-        task.get("distribution_date"), task.get("end_date"), task.get("status"),
-        task.get("priority"), task.get("tool"), task.get("assignee"),
-        task.get("description"), task.get("implementation_date"), task_id,
-    ))
-    row = cur.fetchone()
-    conn.commit(); cur.close(); conn.close()
-    if not row: return jsonify({"error":"not found"}), 404
+        return jsonify({"error": "duplicate",
+                        "message": "同じ担当者・Tool・タスク名・実施日の組み合わせがすでに存在します"}), 409
+    with get_db() as (_, cur):
+        cur.execute("""
+            UPDATE tasks SET name=%s,request_date=%s,start_date=%s,distribution_date=%s,
+                             end_date=%s,status=%s,priority=%s,tool=%s,assignee=%s,
+                             description=%s,implementation_date=%s
+            WHERE id=%s RETURNING *
+        """, (
+            task.get("name"), task.get("request_date"), task.get("start_date"),
+            task.get("distribution_date"), task.get("end_date"), task.get("status"),
+            task.get("priority"), task.get("tool"), task.get("assignee"),
+            task.get("description"), task.get("implementation_date"), task_id,
+        ))
+        row = cur.fetchone()
+    if not row:
+        return jsonify({"error": "not found"}), 404
     return jsonify(dict(row))
 
 @app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
 @login_required
 def delete_task(task_id):
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("DELETE FROM tasks WHERE id=%s", (task_id,))
-    conn.commit(); cur.close(); conn.close()
+    with get_db() as (_, cur):
+        cur.execute("DELETE FROM tasks WHERE id=%s", (task_id,))
     return jsonify({"ok": True})
 
 @app.route("/api/me")
@@ -562,17 +569,7 @@ def api_me():
     u = current_user()
     return jsonify({"email": u["email"], "plan": u["plan"]})
 
-# ─── Admin ────────────────────────────────────────────────────────────────────
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get("is_admin"):
-            return redirect(url_for("admin_login"))
-        return f(*args, **kwargs)
-    return decorated
-
+# ─── Admin Routes ─────────────────────────────────────────────────────────────
 @app.route("/admin/login", methods=["GET","POST"])
 def admin_login():
     if request.method == "POST":
@@ -591,12 +588,11 @@ def admin_logout():
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
-    conn = get_conn(); cur = conn.cursor()
-    cur.execute("SELECT * FROM users ORDER BY email")
-    users = [dict(r) for r in cur.fetchall()]
-    cur.execute("SELECT COUNT(*) FROM tasks")
-    total_tasks = cur.fetchone()["count"]
-    cur.close(); conn.close()
+    with get_db() as (_, cur):
+        cur.execute("SELECT * FROM users ORDER BY email")
+        users = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT COUNT(*) FROM tasks")
+        total_tasks = cur.fetchone()["count"]
     stats = {
         "total_users": len(users),
         "pro_users":   sum(1 for u in users if u.get("plan") == "pro"),
@@ -605,150 +601,219 @@ def admin_dashboard():
     }
     return render_template("admin_dashboard.html", users=users, stats=stats)
 
-# ─── AI Routes ───────────────────────────────────────────────────────────────
-import anthropic as _anthropic
-import re as _re
-import json as _json
-from collections import Counter as _Counter
+# ─── AI Routes (ルールベース) ─────────────────────────────────────────────────
+_SUBTASK_TEMPLATES = {
+    "開発": ["要件定義", "設計", "実装", "単体テスト", "レビュー対応", "結合テスト", "リリース作業"],
+    "テスト": ["テスト計画作成", "テストケース作成", "環境構築", "テスト実施", "バグ報告", "修正確認", "完了報告"],
+    "設計": ["現状調査", "要件整理", "設計案作成", "レビュー", "修正対応", "ドキュメント仕上げ"],
+    "調査": ["情報収集", "現状整理", "問題点抽出", "解決策検討", "レポート作成", "共有・報告"],
+    "移行": ["現状調査", "移行計画作成", "テスト環境移行", "動作確認", "本番移行", "事後確認"],
+    "構築": ["要件確認", "設計書作成", "環境準備", "構築作業", "動作テスト", "ドキュメント作成"],
+    "レビュー": ["対象資料確認", "チェックリスト作成", "レビュー実施", "指摘事項整理", "修正確認", "承認・完了"],
+    "リリース": ["リリース計画作成", "事前チェック", "リリース作業", "動作確認", "監視", "完了報告"],
+}
+_DEFAULT_SUBTASKS = ["要件確認", "計画作成", "作業実施", "進捗確認", "成果物レビュー", "完了報告"]
 
-def _ai_call(prompt, max_tokens=1024):
-    client = _anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
-    msg = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return msg.content[0].text
+_NEG_WORDS = {"困難", "問題", "遅延", "障害", "エラー", "失敗", "懸念", "リスク", "不明", "未対応",
+              "緊急", "急ぎ", "重大", "クリティカル", "ブロック", "停止", "不具合", "バグ", "炎上"}
+_POS_WORDS = {"完了", "達成", "成功", "改善", "解決", "順調", "確認済", "リリース済", "承認", "好調"}
 
-def _extract_json_array(text):
-    match = _re.search(r'\[.*\]', text, _re.DOTALL)
-    if not match:
-        return []
+_PRIORITY_KW = {
+    "高": ["緊急", "急ぎ", "至急", "重要", "クリティカル", "最優先"],
+    "低": ["後回し", "余裕", "暇なとき", "いつか", "低優先"],
+}
+
+def _rule_subtasks(name):
+    for kw, items in _SUBTASK_TEMPLATES.items():
+        if kw in name:
+            return [f"{name}の{s}" for s in items]
+    return [f"{name}の{s}" for s in _DEFAULT_SUBTASKS]
+
+def _parse_date(s):
+    if not s:
+        return None
     try:
-        return _json.loads(match.group())
+        return datetime.strptime(str(s)[:10], "%Y-%m-%d").date()
     except Exception:
-        return []
+        return None
 
-def _extract_json_obj(text):
-    match = _re.search(r'\{.*\}', text, _re.DOTALL)
-    if not match:
-        return {}
-    try:
-        return _json.loads(match.group())
-    except Exception:
-        return {}
-
-# 1. タスク自動分解
 @app.route("/api/ai/decompose", methods=["POST"])
 @login_required
 def ai_decompose():
     name = (request.json or {}).get("name", "").strip()
     if not name:
         return jsonify({"error": "name required"}), 400
-    text = _ai_call(
-        f"タスク「{name}」を5〜7個の具体的なサブタスクに分解してください。"
-        f"JSON配列のみ返してください（説明不要）: [\"サブタスク1\", \"サブタスク2\", ...]"
-    )
-    return jsonify({"subtasks": _extract_json_array(text)})
+    return jsonify({"subtasks": _rule_subtasks(name)})
 
-# 2. 進捗レポート自動生成
 @app.route("/api/ai/report", methods=["GET"])
 @login_required
 def ai_report():
-    data = load_data()
-    summary = "\n".join([
-        f"- {t['name']} | ステータス:{t.get('status','')} | 優先度:{t.get('priority','')} | 完了日:{t.get('end_date','')}"
-        for t in data["tasks"]
-    ])
-    text = _ai_call(
-        f"以下のタスク一覧から今週の進捗レポートを300字程度で作成してください:\n{summary}",
-        max_tokens=600
-    )
-    return jsonify({"report": text})
+    tasks       = load_data()["tasks"]
+    total       = len(tasks)
+    done        = sum(1 for t in tasks if t.get("status") == "完了")
+    in_progress = sum(1 for t in tasks if t.get("status") == "進行中")
+    not_started = sum(1 for t in tasks if t.get("status") == "未着手")
+    today       = datetime.now().date()
+    rate        = int(done / total * 100) if total else 0
+    overdue  = [t for t in tasks if t.get("status") != "完了"
+                and _parse_date(t.get("end_date")) and _parse_date(t.get("end_date")) < today]
+    high_pri = [t for t in tasks if t.get("priority") == "高" and t.get("status") != "完了"]
 
-# 3. 優先度アドバイス
+    lines = [
+        f"【進捗レポート】{today.strftime('%Y年%m月%d日')}時点", "",
+        "■ 全体状況",
+        f"　総タスク数: {total}件　完了率: {rate}%",
+        f"　完了: {done}件　進行中: {in_progress}件　未着手: {not_started}件", "",
+        "■ 要注意事項",
+    ]
+    if overdue:
+        lines.append(f"　期限超過タスクが {len(overdue)}件 あります。")
+        for t in overdue[:3]:
+            lines.append(f"　　・{t['name']}（期限: {t.get('end_date','')}）")
+    else:
+        lines.append("　期限超過タスクはありません。")
+    if high_pri:
+        lines.append(f"　高優先度の未完了タスクが {len(high_pri)}件 あります。")
+        for t in high_pri[:3]:
+            lines.append(f"　　・{t['name']}")
+    lines += ["", "■ 所感",
+              f"　{'順調に進捗しています。' if rate >= 70 else '進捗が遅れ気味です。優先度の高いタスクに集中することを推奨します。'}"]
+    return jsonify({"report": "\n".join(lines)})
+
 @app.route("/api/ai/priority-advice", methods=["GET"])
 @login_required
 def ai_priority_advice():
-    data = load_data()
-    today = datetime.now().strftime("%Y-%m-%d")
-    tasks = [t for t in data["tasks"] if t.get("status") != "完了"]
-    summary = "\n".join([
-        f"- ID:{t['id']} タスク名:{t['name']} 完了日:{t.get('end_date','')} ステータス:{t.get('status','')}"
-        for t in tasks
-    ])
-    text = _ai_call(
-        f"今日は{today}です。以下の未完了タスクから遅延リスクが高いものを3件以内で指摘してください。"
-        f"JSON配列のみ返してください: [{{\"id\":1,\"name\":\"タスク名\",\"reason\":\"理由\"}}]\n{summary}"
-    )
-    return jsonify({"advice": _extract_json_array(text)})
+    today = datetime.now().date()
+    tasks = [t for t in load_data()["tasks"] if t.get("status") != "完了"]
+    scored = []
+    for t in tasks:
+        score = 0
+        ed    = _parse_date(t.get("end_date"))
+        if ed:
+            diff   = (ed - today).days
+            score += 100 if diff < 0 else 50 if diff <= 3 else 20 if diff <= 7 else 0
+        score += 30 if t.get("priority") == "高" else 10 if t.get("priority") == "中" else 0
+        score += 15 if t.get("status") == "未着手" else 0
+        scored.append((score, t))
+    scored.sort(key=lambda x: -x[0])
 
-# 4. 担当者負荷検知
+    advice = []
+    for _, t in scored[:3]:
+        ed = _parse_date(t.get("end_date"))
+        if ed and ed < today:
+            reason = f"期限を{(today - ed).days}日超過しています"
+        elif ed and (ed - today).days <= 3:
+            reason = f"期限まで{(ed - today).days}日しかありません"
+        elif t.get("priority") == "高":
+            reason = "高優先度タスクで未完了です"
+        else:
+            reason = "早期着手を推奨します"
+        advice.append({"id": t["id"], "name": t["name"], "reason": reason})
+    return jsonify({"advice": advice})
+
 @app.route("/api/ai/workload", methods=["GET"])
 @login_required
 def ai_workload():
-    data = load_data()
-    tasks = [t for t in data["tasks"] if t.get("status") != "完了"]
-    counts = _Counter(t.get("assignee", "不明") for t in tasks)
-    workload = [{"name": k, "count": v} for k, v in counts.most_common()]
-    summary = "\n".join([f"- {w['name']}: {w['count']}件" for w in workload])
-    text = _ai_call(
-        f"以下の担当者別タスク件数から負荷が偏っている担当者を指摘してください。"
-        f"JSON配列のみ返してください: [{{\"name\":\"担当者名\",\"count\":5,\"level\":\"高\",\"comment\":\"コメント\"}}]\n{summary}"
-    )
-    return jsonify({"workload": workload, "advice": _extract_json_array(text)})
+    tasks  = [t for t in load_data()["tasks"] if t.get("status") != "完了"]
+    counts = Counter(t.get("assignee", "不明") for t in tasks)
+    avg    = len(tasks) / len(counts) if counts else 0
+    workload, advice = [], []
+    for name, count in counts.most_common():
+        workload.append({"name": name, "count": count})
+        if count >= avg * 1.5 or count >= 8:
+            level, comment = "高", f"{count}件担当しており負荷が高い状態です。タスクの再分配を検討してください。"
+        elif count >= avg * 1.1 or count >= 5:
+            level, comment = "中", f"{count}件担当。やや負荷がかかっています。"
+        else:
+            level, comment = "低", f"{count}件担当。適切な負荷です。"
+        advice.append({"name": name, "count": count, "level": level, "comment": comment})
+    return jsonify({"workload": workload, "advice": advice})
 
-# 5. 自然言語タスク登録
 @app.route("/api/ai/parse-task", methods=["POST"])
 @login_required
 def ai_parse_task():
-    text_input = (request.json or {}).get("text", "").strip()
-    if not text_input:
+    text = (request.json or {}).get("text", "").strip()
+    if not text:
         return jsonify({"error": "text required"}), 400
-    today = datetime.now().strftime("%Y-%m-%d")
-    result = _ai_call(
-        f"今日は{today}です。次の文章からタスク情報を抽出してJSON形式で返してください。"
-        f"フィールド: name(タスク名), assignee(担当者名), end_date(完了日 YYYY-MM-DD形式), priority(高/中/低), description(メモ)\n"
-        f"文章: 「{text_input}」\n"
-        f"JSONオブジェクトのみ返してください: {{\"name\":\"...\",\"assignee\":\"...\",\"end_date\":\"...\",\"priority\":\"...\",\"description\":\"...\"}}"
-    )
-    return jsonify({"task": _extract_json_obj(result)})
+    today    = datetime.now()
+    end_date = ""
 
-# 6. 遅延予測
+    m = re.search(r'(\d{4})[年/\-](\d{1,2})[月/\-](\d{1,2})日?', text)
+    if m:
+        end_date = f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
+    else:
+        m2 = re.search(r'(\d{1,2})[月/](\d{1,2})日?', text)
+        if m2:
+            end_date = f"{today.year}-{int(m2.group(1)):02d}-{int(m2.group(2)):02d}"
+        else:
+            for kw, days in [("今週", 7), ("来週", 14), ("今月末", 30)]:
+                if kw in text:
+                    end_date = (today + timedelta(days=days)).strftime("%Y-%m-%d")
+                    break
+
+    priority = "中"
+    for p, kws in _PRIORITY_KW.items():
+        if any(k in text for k in kws):
+            priority = p
+            break
+
+    m3       = re.search(r'([^\s、。]+)さん', text)
+    assignee = m3.group(1) if m3 else ""
+    name     = re.sub(r'[。、！？!].*', '', text).strip()[:40]
+
+    return jsonify({"task": {"name": name, "assignee": assignee, "end_date": end_date,
+                             "priority": priority, "description": text}})
+
 @app.route("/api/ai/delay-prediction", methods=["GET"])
 @login_required
 def ai_delay_prediction():
-    data = load_data()
-    today = datetime.now().strftime("%Y-%m-%d")
-    tasks = [t for t in data["tasks"] if t.get("status") not in ("完了",)]
-    summary = "\n".join([
-        f"- ID:{t['id']} {t['name']} 着手日:{t.get('start_date','')} 完了予定:{t.get('end_date','')} ステータス:{t.get('status','')}"
-        for t in tasks
-    ])
-    text = _ai_call(
-        f"今日は{today}です。以下のタスクの進捗から遅延が予想されるものを分析してください。"
-        f"JSON配列のみ返してください: [{{\"id\":1,\"name\":\"タスク名\",\"delay_days\":3,\"risk\":\"高\",\"reason\":\"理由\"}}]\n{summary}"
-    )
-    return jsonify({"predictions": _extract_json_array(text)})
+    today       = datetime.now().date()
+    predictions = []
+    for t in load_data()["tasks"]:
+        if t.get("status") == "完了":
+            continue
+        ed = _parse_date(t.get("end_date"))
+        if not ed:
+            continue
+        diff = (ed - today).days
+        if diff < 0:
+            predictions.append({"id": t["id"], "name": t["name"],
+                                 "delay_days": abs(diff), "risk": "高",
+                                 "reason": f"期限を{abs(diff)}日超過しています"})
+        elif diff <= 2 and t.get("status") == "未着手":
+            predictions.append({"id": t["id"], "name": t["name"],
+                                 "delay_days": 0, "risk": "高",
+                                 "reason": f"期限まで{diff}日ですが未着手です"})
+        elif diff <= 5 and t.get("status") in ("未着手", "保留"):
+            predictions.append({"id": t["id"], "name": t["name"],
+                                 "delay_days": 0, "risk": "中",
+                                 "reason": f"期限まで{diff}日で進捗が不十分です"})
+    predictions.sort(key=lambda x: x["delay_days"], reverse=True)
+    return jsonify({"predictions": predictions})
 
-# 7. 感情分析
 @app.route("/api/ai/sentiment", methods=["POST"])
 @login_required
 def ai_sentiment():
     tasks = (request.json or {}).get("tasks", [])
     if not tasks:
         return jsonify({"sentiments": []})
-    descriptions = "\n".join([
-        f"ID:{t['id']} 「{t.get('description', t.get('name',''))}」"
-        for t in tasks[:20]
-    ])
-    text = _ai_call(
-        f"以下のタスクの内容から感情・ストレス度を分析してください。"
-        f"JSON配列のみ返してください: [{{\"id\":1,\"sentiment\":\"ポジティブ\",\"stress\":\"低\"}}]\n"
-        f"sentimentは「ポジティブ/普通/ネガティブ」、stressは「低/中/高」\n{descriptions}"
-    )
-    return jsonify({"sentiments": _extract_json_array(text)})
+    results = []
+    for t in tasks[:20]:
+        text = t.get("description", "") or t.get("name", "")
+        neg  = sum(1 for w in _NEG_WORDS if w in text)
+        pos  = sum(1 for w in _POS_WORDS if w in text)
+        if neg >= 2 or (neg > pos and neg >= 1):
+            sentiment, stress = "ネガティブ", "高"
+        elif pos >= 1 and neg == 0:
+            sentiment, stress = "ポジティブ", "低"
+        else:
+            sentiment, stress = "普通", "中"
+        if t.get("priority") == "高" and stress != "高":
+            stress = "中"
+        results.append({"id": t["id"], "sentiment": sentiment, "stress": stress})
+    return jsonify({"sentiments": results})
 
+# ─── Entry Point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
