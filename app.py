@@ -37,6 +37,7 @@ STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET  = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_ID        = os.environ.get("STRIPE_PRICE_ID", "")
 ADMIN_PASSWORD         = os.environ.get("ADMIN_PASSWORD", "")
+WEBMASTER_EMAIL        = "isamu.hayashi@hp.com"
 
 FREE_TASK_LIMIT = 10
 TOOLS_VER       = 2
@@ -113,8 +114,12 @@ def init_db():
                 password               VARCHAR(255) NOT NULL,
                 plan                   VARCHAR(20)  DEFAULT 'free',
                 stripe_customer_id     VARCHAR(255),
-                stripe_subscription_id VARCHAR(255)
+                stripe_subscription_id VARCHAR(255),
+                display_name           VARCHAR(200)
             )
+        """)
+        cur.execute("""
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(200)
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS tasks (
@@ -143,6 +148,15 @@ def init_db():
             CREATE TABLE IF NOT EXISTS tools (
                 id   SERIAL PRIMARY KEY,
                 name VARCHAR(200) NOT NULL
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS feedback (
+                id         SERIAL PRIMARY KEY,
+                user_id    VARCHAR(36),
+                rating     INTEGER,
+                message    TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
             )
         """)
 
@@ -232,30 +246,58 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# ─── Data Access ──────────────────────────────────────────────────────────────
-def load_data():
+# ─── Admin Stats Helper ───────────────────────────────────────────────────────
+def _get_site_stats():
     with get_db() as (_, cur):
-        cur.execute("SELECT * FROM tasks ORDER BY id")
-        tasks = [dict(r) for r in cur.fetchall()]
-    next_id = (max(t["id"] for t in tasks) + 1) if tasks else 1
+        cur.execute("SELECT * FROM users ORDER BY email")
+        users = [dict(r) for r in cur.fetchall()]
+        cur.execute("SELECT COUNT(*) FROM tasks")
+        total_tasks = cur.fetchone()["count"]
+        cur.execute("""
+            SELECT f.id, f.rating, f.message, f.created_at, u.email AS user_email
+            FROM feedback f
+            LEFT JOIN users u ON u.id = f.user_id
+            ORDER BY f.created_at DESC
+        """)
+        feedback = [dict(r) for r in cur.fetchall()]
+    stats = {
+        "total_users": len(users),
+        "pro_users":   sum(1 for u in users if u.get("plan") == "pro"),
+        "free_users":  sum(1 for u in users if u.get("plan") != "pro"),
+        "total_tasks": total_tasks,
+    }
+    return users, stats, feedback
+
+# ─── Data Access ──────────────────────────────────────────────────────────────
+def _load_table(table):
+    with get_db() as (_, cur):
+        cur.execute(f"SELECT * FROM {table} ORDER BY id")
+        rows = [dict(r) for r in cur.fetchall()]
+    next_id = (max(r["id"] for r in rows) + 1) if rows else 1
+    return rows, next_id
+
+def load_data():
+    tasks, next_id = _load_table("tasks")
     return {"tasks": tasks, "next_id": next_id}
 
 def load_tools():
-    with get_db() as (_, cur):
-        cur.execute("SELECT * FROM tools ORDER BY id")
-        tools = [dict(r) for r in cur.fetchall()]
-    next_id = (max(t["id"] for t in tools) + 1) if tools else 1
+    tools, next_id = _load_table("tools")
     return {"version": TOOLS_VER, "tools": tools, "next_id": next_id}
 
 def load_assignees():
-    with get_db() as (_, cur):
-        cur.execute("SELECT * FROM assignees ORDER BY id")
-        assignees = [dict(r) for r in cur.fetchall()]
-    next_id = (max(a["id"] for a in assignees) + 1) if assignees else 1
+    assignees, next_id = _load_table("assignees")
     return {"assignees": assignees, "next_id": next_id}
 
 def _composite_key(t):
     return (t.get("assignee",""), t.get("tool",""), t.get("name",""), t.get("implementation_date",""))
+
+_TASK_FIELDS = (
+    "name", "request_date", "start_date", "distribution_date", "end_date",
+    "status", "priority", "tool", "assignee", "description", "implementation_date",
+)
+
+def _task_params(task):
+    return tuple(task.get(f) for f in _TASK_FIELDS)
 
 # ─── Auth Routes ──────────────────────────────────────────────────────────────
 @app.route("/signup", methods=["GET","POST"])
@@ -499,6 +541,88 @@ def delete_assignee(aid):
 def index():
     return render_template("index.html", user=current_user(), is_pro=is_pro())
 
+@app.route("/account_sample")
+def account_sample():
+    return render_template("account_sample.html")
+
+@app.route("/feedback_sample")
+def feedback_sample():
+    return render_template("feedback_sample.html")
+
+@app.route("/account")
+@login_required
+def account():
+    u = current_user()
+    display_name = u.get("display_name") or ""
+    email = u.get("email", "")
+    if display_name:
+        initials = "".join(w[0] for w in display_name.split() if w).upper()[:2]
+    else:
+        initials = email[:2].upper()
+    wm_users, wm_stats, wm_feedback = [], {}, []
+    if email == WEBMASTER_EMAIL:
+        wm_users, wm_stats, wm_feedback = _get_site_stats()
+    return render_template("account.html", user=u, is_pro=is_pro(),
+                           display_name=display_name, initials=initials,
+                           is_webmaster=(email == WEBMASTER_EMAIL),
+                           wm_users=wm_users, wm_stats=wm_stats,
+                           wm_feedback=wm_feedback)
+
+@app.route("/api/account/profile", methods=["POST"])
+@login_required
+def update_profile():
+    data = request.get_json()
+    display_name = (data.get("display_name") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"error": "メールアドレスを入力してください"}), 400
+    u = current_user()
+    if email != u["email"] and find_user_by_email(email):
+        return jsonify({"error": "このメールアドレスはすでに使用されています"}), 400
+    with get_db() as (_, cur):
+        cur.execute("UPDATE users SET display_name=%s, email=%s WHERE id=%s",
+                    (display_name or None, email, u["id"]))
+    return jsonify({"ok": True})
+
+@app.route("/api/account/password", methods=["POST"])
+@login_required
+def update_password():
+    data = request.get_json()
+    current_pw = data.get("current_password", "")
+    new_pw = data.get("new_password", "")
+    if not new_pw or len(new_pw) < 8:
+        return jsonify({"error": "新しいパスワードは8文字以上で入力してください"}), 400
+    u = current_user()
+    if not check_password_hash(u["password"], current_pw):
+        return jsonify({"error": "現在のパスワードが正しくありません"}), 400
+    with get_db() as (_, cur):
+        cur.execute("UPDATE users SET password=%s WHERE id=%s",
+                    (generate_password_hash(new_pw), u["id"]))
+    return jsonify({"ok": True})
+
+@app.route("/api/account/delete", methods=["POST"])
+@login_required
+def delete_account():
+    u = current_user()
+    with get_db() as (_, cur):
+        cur.execute("DELETE FROM users WHERE id=%s", (u["id"],))
+    session.clear()
+    return jsonify({"ok": True})
+
+@app.route("/api/feedback", methods=["POST"])
+@login_required
+def submit_feedback():
+    data = request.get_json()
+    rating  = data.get("rating")
+    message = (data.get("message") or "").strip()
+    if not rating or not (1 <= int(rating) <= 5):
+        return jsonify({"error": "評価を選択してください"}), 400
+    u = current_user()
+    with get_db() as (_, cur):
+        cur.execute("INSERT INTO feedback (user_id, rating, message) VALUES (%s, %s, %s)",
+                    (u["id"], int(rating), message or None))
+    return jsonify({"ok": True})
+
 @app.route("/api/tasks", methods=["GET"])
 @login_required
 def get_tasks():
@@ -521,12 +645,7 @@ def add_task():
             INSERT INTO tasks (name,request_date,start_date,distribution_date,end_date,
                                status,priority,tool,assignee,description,implementation_date)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
-        """, (
-            task.get("name"), task.get("request_date"), task.get("start_date"),
-            task.get("distribution_date"), task.get("end_date"), task.get("status"),
-            task.get("priority"), task.get("tool"), task.get("assignee"),
-            task.get("description"), task.get("implementation_date"),
-        ))
+        """, _task_params(task))
         task["id"] = cur.fetchone()["id"]
     return jsonify(task), 201
 
@@ -545,12 +664,7 @@ def update_task(task_id):
                              end_date=%s,status=%s,priority=%s,tool=%s,assignee=%s,
                              description=%s,implementation_date=%s
             WHERE id=%s RETURNING *
-        """, (
-            task.get("name"), task.get("request_date"), task.get("start_date"),
-            task.get("distribution_date"), task.get("end_date"), task.get("status"),
-            task.get("priority"), task.get("tool"), task.get("assignee"),
-            task.get("description"), task.get("implementation_date"), task_id,
-        ))
+        """, _task_params(task) + (task_id,))
         row = cur.fetchone()
     if not row:
         return jsonify({"error": "not found"}), 404
@@ -588,17 +702,7 @@ def admin_logout():
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
-    with get_db() as (_, cur):
-        cur.execute("SELECT * FROM users ORDER BY email")
-        users = [dict(r) for r in cur.fetchall()]
-        cur.execute("SELECT COUNT(*) FROM tasks")
-        total_tasks = cur.fetchone()["count"]
-    stats = {
-        "total_users": len(users),
-        "pro_users":   sum(1 for u in users if u.get("plan") == "pro"),
-        "free_users":  sum(1 for u in users if u.get("plan") != "pro"),
-        "total_tasks": total_tasks,
-    }
+    users, stats, _ = _get_site_stats()
     return render_template("admin_dashboard.html", users=users, stats=stats)
 
 # ─── AI Routes (ルールベース) ─────────────────────────────────────────────────

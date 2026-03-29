@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フィードバック画面サンプル — NAGARE</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI","Meiryo",sans-serif;background:#1e1e1e;color:#d4d4d4;min-height:100vh;padding:32px 24px}
+.page-title{font-size:13px;font-weight:700;color:#858585;letter-spacing:.1em;text-transform:uppercase;margin-bottom:24px}
+.demos{display:flex;flex-direction:column;gap:40px;max-width:1000px;margin:0 auto}
+.demo-label{font-size:11px;font-weight:700;color:#007acc;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+.demo-card{background:#252526;border:1px solid #3c3c3c;border-radius:8px;overflow:hidden}
+.demo-header{background:#37373d;padding:0 16px;height:42px;display:flex;align-items:center;font-size:13px;font-weight:700;letter-spacing:.04em;color:#d4d4d4;border-bottom:1px solid #3c3c3c}
+
+/* ─── PATTERN A: スターレーティング + テキスト ─── */
+.fb-a{padding:24px}
+.star-row{display:flex;gap:6px;margin-bottom:20px}
+.star{font-size:28px;cursor:pointer;color:#505050;transition:color .1s;line-height:1}
+.star:hover,.star.active{color:#f39c12}
+.fb-label{font-size:11px;font-weight:700;color:#858585;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.fb-subtitle{font-size:12px;color:#858585;margin-bottom:16px}
+.fb-textarea{width:100%;background:#3c3c3c;border:1px solid #454545;color:#d4d4d4;border-radius:6px;padding:10px 13px;font-size:13px;font-family:inherit;resize:none;height:100px;outline:none;transition:border-color .15s}
+.fb-textarea:focus{border-color:#007acc}
+.fb-row{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+.fb-hint{font-size:11px;color:#858585}
+.btn-send{background:#007acc;color:#fff;border:none;border-radius:5px;padding:8px 22px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s}
+.btn-send:hover{background:#005a9e}
+.btn-cancel{background:transparent;color:#858585;border:none;border-radius:5px;padding:8px 16px;font-size:13px;cursor:pointer;transition:color .15s}
+.btn-cancel:hover{color:#d4d4d4}
+
+/* ─── PATTERN B: カテゴリ選択 + 感情 ─── */
+.fb-b{padding:24px}
+.cat-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.cat-btn{background:#3c3c3c;border:1px solid #454545;color:#b0b0b0;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+.cat-btn:hover{border-color:#007acc;color:#007acc}
+.cat-btn.active{background:#094771;border-color:#007acc;color:#9cdcfe}
+.emoji-row{display:flex;gap:12px;margin-bottom:20px}
+.emoji-btn{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;padding:8px 12px;border-radius:8px;border:1px solid transparent;transition:all .15s}
+.emoji-btn:hover{background:#3c3c3c;border-color:#454545}
+.emoji-btn.active{background:#094771;border-color:#007acc}
+.emoji-btn span:first-child{font-size:24px}
+.emoji-btn span:last-child{font-size:10px;color:#858585}
+.emoji-btn.active span:last-child{color:#9cdcfe}
+
+/* ─── PATTERN C: NPS スコア ─── */
+.fb-c{padding:24px}
+.nps-question{font-size:14px;font-weight:600;color:#d4d4d4;margin-bottom:16px;line-height:1.5}
+.nps-row{display:flex;gap:4px;margin-bottom:8px}
+.nps-btn{flex:1;height:36px;background:#3c3c3c;border:1px solid #454545;color:#b0b0b0;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+.nps-btn:hover{background:#505050}
+.nps-btn.active{background:#007acc;border-color:#007acc;color:#fff}
+.nps-btn.active-low{background:#4a1010;border-color:#8b1a1a;color:#f48771}
+.nps-btn.active-mid{background:#3a2a00;border-color:#665500;color:#ddb66a}
+.nps-btn.active-high{background:#094771;border-color:#007acc;color:#9cdcfe}
+.nps-labels{display:flex;justify-content:space-between;font-size:10px;color:#858585;margin-bottom:20px}
+.reason-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.chip{background:#3c3c3c;border:1px solid #454545;color:#b0b0b0;border-radius:4px;padding:4px 12px;font-size:11px;cursor:pointer;transition:all .15s}
+.chip:hover{border-color:#007acc;color:#007acc}
+.chip.active{background:#094771;border-color:#007acc;color:#9cdcfe}
+
+/* ─── PATTERN D: スライド式 ─── */
+.fb-d{padding:0}
+.fb-steps{display:flex;align-items:center;gap:0}
+.fb-step{flex:1;height:3px;background:#3c3c3c}
+.fb-step.done{background:#007acc}
+.fb-step-body{padding:24px}
+.rating-big{display:flex;flex-direction:column;align-items:center;padding:8px 0 24px}
+.rating-big-stars{display:flex;gap:10px;margin-bottom:8px}
+.star-lg{font-size:36px;cursor:pointer;color:#505050;transition:all .15s;line-height:1}
+.star-lg:hover,.star-lg.active{color:#f39c12;transform:scale(1.15)}
+.rating-caption{font-size:13px;color:#858585;min-height:20px;text-align:center}
+.aspects-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.aspect-card{background:#3c3c3c;border:1px solid #454545;border-radius:6px;padding:12px;cursor:pointer;transition:all .15s}
+.aspect-card:hover{border-color:#007acc}
+.aspect-card.active{background:#094771;border-color:#007acc}
+.aspect-title{font-size:12px;font-weight:700;color:#d4d4d4;margin-bottom:2px}
+.aspect-desc{font-size:10px;color:#858585}
+.aspect-card.active .aspect-desc{color:#9cdcfe}
+
+.section-sep{font-size:11px;font-weight:700;color:#858585;letter-spacing:.12em;text-transform:uppercase;padding:28px 0 12px;border-bottom:1px solid #3c3c3c;margin-bottom:24px}
+</style>
+</head>
+<body>
+
+<div class="page-title">フィードバック画面 — デザインサンプル</div>
+
+<div class="demos">
+
+  <!-- ── Pattern A ── -->
+  <div>
+    <div class="demo-label">Pattern A — スター評価 ＋ テキスト（シンプル）</div>
+    <div class="demo-card">
+      <div class="demo-header">フィードバックを送る</div>
+      <div class="fb-a">
+        <div class="fb-label">全体的な満足度</div>
+        <div class="star-row" id="stars-a">
+          <span class="star" data-v="1" onclick="rateStar('a',1)">★</span>
+          <span class="star" data-v="2" onclick="rateStar('a',2)">★</span>
+          <span class="star" data-v="3" onclick="rateStar('a',3)">★</span>
+          <span class="star" data-v="4" onclick="rateStar('a',4)">★</span>
+          <span class="star" data-v="5" onclick="rateStar('a',5)">★</span>
+        </div>
+        <div class="fb-label" style="margin-bottom:8px">ご意見・ご要望</div>
+        <textarea class="fb-textarea" placeholder="機能の改善点や、あったら嬉しい機能など、自由にお聞かせください。"></textarea>
+        <div class="fb-row">
+          <span class="fb-hint">※ 送信内容は開発改善のみに使用します</span>
+          <div style="display:flex;gap:6px">
+            <button type="button" class="btn-cancel">キャンセル</button>
+            <button type="button" class="btn-send">送信する</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pattern B ── -->
+  <div>
+    <div class="demo-label">Pattern B — カテゴリ選択 ＋ 絵文字フィーリング</div>
+    <div class="demo-card">
+      <div class="demo-header">フィードバックを送る</div>
+      <div class="fb-b">
+        <div class="fb-label" style="margin-bottom:10px">種類を選んでください</div>
+        <div class="cat-row">
+          <div class="cat-btn active" onclick="toggleCat(this)">🐛 バグ報告</div>
+          <div class="cat-btn" onclick="toggleCat(this)">✨ 機能リクエスト</div>
+          <div class="cat-btn" onclick="toggleCat(this)">💡 改善案</div>
+          <div class="cat-btn" onclick="toggleCat(this)">🙌 その他</div>
+        </div>
+        <div class="fb-label" style="margin-bottom:10px">使っていてどう感じましたか？</div>
+        <div class="emoji-row">
+          <div class="emoji-btn" onclick="toggleEmoji(this)"><span>😤</span><span>困った</span></div>
+          <div class="emoji-btn" onclick="toggleEmoji(this)"><span>😐</span><span>普通</span></div>
+          <div class="emoji-btn active" onclick="toggleEmoji(this)"><span>🙂</span><span>良い</span></div>
+          <div class="emoji-btn" onclick="toggleEmoji(this)"><span>😄</span><span>最高</span></div>
+        </div>
+        <div class="fb-label" style="margin-bottom:8px">詳細</div>
+        <textarea class="fb-textarea" placeholder="詳しく教えてください…"></textarea>
+        <div class="fb-row">
+          <span class="fb-hint">※ 返信が必要な場合はサポートまで</span>
+          <div style="display:flex;gap:6px">
+            <button type="button" class="btn-cancel">キャンセル</button>
+            <button type="button" class="btn-send">送信する</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pattern C ── -->
+  <div>
+    <div class="demo-label">Pattern C — NPS スコア（推奨度）</div>
+    <div class="demo-card">
+      <div class="demo-header">フィードバックを送る</div>
+      <div class="fb-c">
+        <div class="nps-question">NAGAREを友人や同僚にどの程度すすめたいですか？</div>
+        <div class="nps-row" id="nps-btns">
+          <button type="button" class="nps-btn" onclick="rateNPS(0)">0</button>
+          <button type="button" class="nps-btn" onclick="rateNPS(1)">1</button>
+          <button type="button" class="nps-btn" onclick="rateNPS(2)">2</button>
+          <button type="button" class="nps-btn" onclick="rateNPS(3)">3</button>
+          <button type="button" class="nps-btn" onclick="rateNPS(4)">4</button>
+          <button type="button" class="nps-btn" onclick="rateNPS(5)">5</button>
+          <button type="button" class="nps-btn" onclick="rateNPS(6)">6</button>
+          <button type="button" class="nps-btn active-high" onclick="rateNPS(7)">7</button>
+          <button type="button" class="nps-btn active-high" onclick="rateNPS(8)">8</button>
+          <button type="button" class="nps-btn active-high" onclick="rateNPS(9)">9</button>
+          <button type="button" class="nps-btn active-high" onclick="rateNPS(10)">10</button>
+        </div>
+        <div class="nps-labels"><span>全くすすめない</span><span>非常にすすめたい</span></div>
+        <div class="fb-label" style="margin-bottom:10px">その理由を教えてください（任意）</div>
+        <div class="reason-chips">
+          <div class="chip active" onclick="toggleChip(this)">使いやすい</div>
+          <div class="chip" onclick="toggleChip(this)">ガントチャートが便利</div>
+          <div class="chip" onclick="toggleChip(this)">動作が速い</div>
+          <div class="chip" onclick="toggleChip(this)">UI が好き</div>
+          <div class="chip" onclick="toggleChip(this)">機能が足りない</div>
+        </div>
+        <textarea class="fb-textarea" placeholder="その他のご意見…" style="height:70px"></textarea>
+        <div class="fb-row" style="margin-top:14px">
+          <span class="fb-hint">匿名で送信されます</span>
+          <div style="display:flex;gap:6px">
+            <button type="button" class="btn-cancel">キャンセル</button>
+            <button type="button" class="btn-send">送信する</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pattern D ── -->
+  <div>
+    <div class="demo-label">Pattern D — ステップ式（大きいスター ＋ 詳細）</div>
+    <div class="demo-card">
+      <div class="demo-header">フィードバックを送る</div>
+      <div class="fb-steps">
+        <div class="fb-step done"></div>
+        <div class="fb-step done"></div>
+        <div class="fb-step"></div>
+      </div>
+      <div class="fb-step-body">
+        <div class="fb-label" style="margin-bottom:16px">特に評価したい点を選んでください</div>
+        <div class="aspects-grid">
+          <div class="aspect-card active" onclick="toggleAspect(this)">
+            <div class="aspect-title">📊 ガントチャート</div>
+            <div class="aspect-desc">視覚的なスケジュール管理</div>
+          </div>
+          <div class="aspect-card" onclick="toggleAspect(this)">
+            <div class="aspect-title">⚡ 操作スピード</div>
+            <div class="aspect-desc">快適な動作・レスポンス</div>
+          </div>
+          <div class="aspect-card" onclick="toggleAspect(this)">
+            <div class="aspect-title">🎨 デザイン</div>
+            <div class="aspect-desc">見た目・使いやすさ</div>
+          </div>
+          <div class="aspect-card" onclick="toggleAspect(this)">
+            <div class="aspect-title">🤖 AI 機能</div>
+            <div class="aspect-desc">タスク分析・提案</div>
+          </div>
+        </div>
+        <textarea class="fb-textarea" placeholder="さらに詳しくお聞かせください（任意）"></textarea>
+        <div class="fb-row" style="margin-top:14px">
+          <span class="fb-hint">Step 2 / 3</span>
+          <div style="display:flex;gap:6px">
+            <button type="button" class="btn-cancel">戻る</button>
+            <button type="button" class="btn-send">次へ →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#252526;border:1px solid #3c3c3c;border-radius:8px;padding:16px;font-size:13px;color:#858585;line-height:1.8">
+    採用するパターンを教えてください：<strong style="color:#d4d4d4">A（シンプル）/ B（カテゴリ＋感情）/ C（NPS）/ D（ステップ）</strong><br>
+    組み合わせも可能です。
+  </div>
+
+</div>
+
+<script>
+function rateStar(id, val) {
+  document.querySelectorAll(`#stars-${id} .star`).forEach((s,i)=>{
+    s.classList.toggle('active', i < val);
+  });
+}
+function toggleCat(el) {
+  el.closest('.cat-row').querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+function toggleEmoji(el) {
+  el.closest('.emoji-row').querySelectorAll('.emoji-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+function rateNPS(val) {
+  document.querySelectorAll('#nps-btns .nps-btn').forEach((b,i)=>{
+    b.className = 'nps-btn';
+    if (i === val) b.className += val <= 6 ? ' active-low' : val <= 8 ? ' active-mid' : ' active-high';
+  });
+}
+function toggleChip(el) { el.classList.toggle('active'); }
+function toggleAspect(el) { el.classList.toggle('active'); }
+</script>
+</body>
+</html>

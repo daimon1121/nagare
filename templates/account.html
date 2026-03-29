@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アカウント設定 — NAGARE</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI","Meiryo",sans-serif;background:#1e1e1e;color:#d4d4d4;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Tab bar ── */
+#tab-bar{background:#252526;display:flex;align-items:center;padding:0 14px;height:44px;flex-shrink:0;gap:2px;border-bottom:1px solid #3c3c3c}
+.logo{font-size:15px;font-weight:800;color:#fff;letter-spacing:.04em;text-decoration:none}
+.logo span{color:#007acc}
+.tab-bar-right{margin-left:auto;display:flex;align-items:center;gap:10px;padding-right:4px}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#007acc,#00b4d8);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;box-shadow:0 0 0 2px rgba(0,122,204,.4);-webkit-user-select:none;user-select:none;text-decoration:none;flex-shrink:0}
+
+/* ── Layout ── */
+#main-area{flex:1;min-height:0;display:flex;overflow:hidden}
+
+/* ── Sidebar ── */
+#sidebar{width:200px;background:#252526;border-right:1px solid #3c3c3c;display:flex;flex-direction:column;flex-shrink:0}
+.sb-profile{padding:20px 14px 16px;border-bottom:1px solid #3c3c3c;display:flex;flex-direction:column;align-items:center;gap:6px}
+.sb-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#007acc,#00b4d8);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;box-shadow:0 0 0 3px rgba(0,122,204,.25)}
+.sb-name{font-size:13px;font-weight:700;color:#d4d4d4;text-align:center;word-break:break-all}
+.sb-email{font-size:11px;color:#858585;text-align:center;word-break:break-all}
+.sb-plan{font-size:10px;font-weight:700;padding:2px 10px;border-radius:10px}
+.sb-plan.pro{background:#f39c12;color:#fff}
+.sb-plan.free{background:#3c3c3c;color:#858585}
+.sb-nav{flex:1;padding:6px 0}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 16px;font-size:13px;color:#858585;cursor:pointer;transition:background .12s,color .12s;border-left:3px solid transparent;text-decoration:none}
+.sb-item:hover{background:#2a2d2e;color:#d4d4d4}
+.sb-item.active{background:#094771;color:#9cdcfe;border-left-color:#007acc;font-weight:700}
+.sb-item svg{flex-shrink:0;opacity:.6}
+.sb-item.active svg{opacity:1}
+.sb-bottom{padding:6px 0 10px;border-top:1px solid #3c3c3c}
+.sb-item.danger:hover{background:rgba(231,76,60,.1);color:#e74c3c}
+
+/* ── Content ── */
+#content{flex:1;overflow-y:auto;padding:16px;background:#1e1e1e}
+.section{display:none}
+.section.active{display:flex;flex-direction:column;gap:10px}
+
+/* ── Panel ── */
+.panel{background:#252526;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.4);border:1px solid #3c3c3c;display:flex;flex-direction:column;overflow:hidden}
+.panel-hdr{background:#37373d;color:#d4d4d4;padding:0 16px;height:42px;display:flex;align-items:center;gap:10px;flex-shrink:0;font-size:13px;font-weight:700;letter-spacing:.04em;border-bottom:1px solid #3c3c3c}
+.panel-body{padding:20px}
+
+/* ── Form ── */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:11px;font-weight:700;color:#858585;letter-spacing:.04em;text-transform:uppercase}
+.form-group input{background:#3c3c3c;border:1px solid #454545;color:#d4d4d4;border-radius:5px;padding:8px 11px;font-size:13px;transition:border-color .15s;outline:none}
+.form-group input:focus{border-color:#007acc;background:#3c3c3c}
+.btn-primary{background:#007acc;color:#fff;border:none;border-radius:5px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s;align-self:flex-start;position:relative;overflow:hidden}
+.btn-primary:hover{background:#005a9e}
+.btn-primary:disabled{opacity:.6;cursor:not-allowed}
+.btn-danger-outline{background:transparent;color:#e74c3c;border:1px solid #e74c3c;border-radius:5px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s;position:relative;overflow:hidden}
+.btn-danger-outline:hover{background:rgba(231,76,60,.1)}
+
+/* ── Plan card ── */
+.plan-card{border:1px solid #3c3c3c;border-radius:6px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;background:#2d2d2d}
+.plan-card.current{border-color:#007acc;background:rgba(0,122,204,.08)}
+.plan-label{font-size:11px;color:#858585;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.plan-name{font-size:15px;font-weight:800;color:#d4d4d4}
+.plan-name.pro{color:#f39c12}
+.plan-price{font-size:12px;color:#858585;margin-top:2px}
+.plan-active{font-size:11px;font-weight:700;color:#4ec9b0}
+.btn-upgrade{background:#007acc;color:#fff;border:none;border-radius:5px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;transition:background .15s;position:relative;overflow:hidden}
+.btn-upgrade:hover{background:#005a9e}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:20px;right:20px;background:#252526;color:#d4d4d4;border:1px solid #454545;border-radius:6px;padding:10px 18px;font-size:13px;font-weight:600;opacity:0;transform:translateY(6px);transition:all .2s;pointer-events:none;z-index:9999}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.error{background:#4a1010;color:#f48771;border-color:#8b1a1a}
+
+/* ── Confirm overlay ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;display:none;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.dialog{background:#252526;border:1px solid #454545;border-radius:8px;padding:24px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.6)}
+.dialog h3{font-size:15px;font-weight:800;color:#d4d4d4;margin-bottom:8px}
+.dialog p{font-size:13px;color:#858585;line-height:1.6;margin-bottom:18px}
+.dialog-btns{display:flex;gap:8px;justify-content:flex-end}
+.badge-pro{background:#f39c12;color:#fff;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px}
+.badge-free{background:#555;color:#ccc;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px}
+.form-row-mb{margin-bottom:14px}
+.panel-narrow{max-width:480px}
+.panel-mid{max-width:540px}
+.panel-body-col{display:flex;flex-direction:column;gap:14px}
+.panel-body-plan{display:flex;flex-direction:column;gap:10px}
+.plan-note{font-size:12px;color:#7f8c8d}
+.plan-name-upgrade{color:#3498db}
+.btn-cancel{background:#7f8c8d}
+/* ── Feedback stars ── */
+.star-row{display:flex;gap:8px;margin-bottom:20px}
+.star{font-size:30px;cursor:pointer;color:#505050;transition:color .1s,transform .1s;line-height:1;-webkit-user-select:none;user-select:none}
+.star:hover,.star.active{color:#f39c12;transform:scale(1.15)}
+.fb-hint{font-size:11px;color:#858585}
+.fb-textarea{background:#3c3c3c;border:1px solid #454545;color:#d4d4d4;border-radius:5px;padding:9px 12px;font-size:13px;font-family:inherit;resize:none;height:110px;outline:none;width:100%;transition:border-color .15s}
+.fb-textarea:focus{border-color:#007acc}
+.fb-footer{display:flex;align-items:center;justify-content:space-between}
+/* ── Button ripple ── */
+.btn-primary,.btn-danger-outline,.btn-upgrade{position:relative;overflow:hidden}
+.ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.35);transform:scale(0);animation:ripple-anim .45s linear;pointer-events:none}
+.btn-danger-outline .ripple{background:rgba(231,76,60,.25)}
+@keyframes ripple-anim{to{transform:scale(4);opacity:0}}
+
+/* ── WebMaster section ── */
+.wm-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.wm-stat-card{flex:1;min-width:110px;background:#252526;border:1px solid #3c3c3c;border-radius:6px;padding:14px 16px}
+.wm-stat-label{font-size:10px;color:#858585;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.wm-stat-value{font-size:28px;font-weight:700;color:#d4d4d4}
+.wm-stat-card.c-pro .wm-stat-value{color:#f39c12}
+.wm-stat-card.c-free .wm-stat-value{color:#569cd6}
+.wm-stat-card.c-tasks .wm-stat-value{color:#4ec9b0}
+.wm-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.wm-search{background:#3c3c3c;border:1px solid #454545;border-radius:5px;color:#d4d4d4;
+           padding:6px 10px;font-size:12px;width:240px;outline:none;transition:border-color .15s}
+.wm-search:focus{border-color:#007acc}
+.wm-count{font-size:11px;color:#858585}
+.wm-section-title{font-size:11px;font-weight:700;color:#858585;text-transform:uppercase;
+                  letter-spacing:.06em;margin:18px 0 8px}
+.wm-services{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-bottom:16px}
+.wm-svc{background:#252526;border:1px solid #3c3c3c;border-radius:6px;padding:12px 14px;
+        display:flex;align-items:flex-start;gap:10px;transition:border-color .15s}
+.wm-svc:hover{border-color:#007acc}
+.wm-svc-icon{font-size:1.2rem;flex-shrink:0;margin-top:1px}
+.wm-svc-name{font-size:13px;font-weight:700;margin-bottom:3px;color:#d4d4d4}
+.wm-svc-desc{font-size:11px;color:#858585;line-height:1.5}
+.wm-svc-link{font-size:11px;color:#007acc;text-decoration:none;margin-top:4px;display:inline-block}
+.wm-svc-link:hover{text-decoration:underline}
+.wm-check-list{background:#252526;border:1px solid #3c3c3c;border-radius:6px;overflow:hidden;margin-bottom:16px}
+.wm-check-row{display:flex;align-items:center;padding:9px 14px;border-bottom:1px solid #3c3c3c;gap:10px;font-size:12px}
+.wm-check-row:last-child{border-bottom:none}
+.wm-check-svc{width:100px;font-weight:700;flex-shrink:0;color:#d4d4d4}
+.wm-check-pt{flex:1;color:#858585}
+.wm-check-tag{font-size:10px;background:#3c3c3c;color:#858585;padding:1px 7px;border-radius:10px;font-weight:700;flex-shrink:0}
+.env-mono{font-family:monospace;font-size:11px;color:#c586c0}
+.wm-app-links{display:flex;gap:8px;flex-wrap:wrap}
+.wm-app-link{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;background:#3c3c3c;
+             border-radius:5px;text-decoration:none;color:#d4d4d4;font-size:12px;
+             font-weight:500;transition:background .15s;border:1px solid #454545}
+.wm-app-link:hover{background:#505050}
+.sb-webmaster{color:#f39c12;margin-top:4px;border-top:1px solid #3c3c3c}
+.sb-webmaster:hover{color:#f39c12}
+.wm-table-wrap{overflow-x:auto}
+.wm-table{width:100%;border-collapse:collapse;font-size:12px}
+.wm-th{background:#37373d;padding:8px 10px;text-align:left;color:#858585;font-weight:700;border-bottom:1px solid #454545;white-space:nowrap}
+.wm-td{padding:9px 10px;border-bottom:1px solid #3c3c3c;color:#d4d4d4}
+.wm-td-muted{color:#505050}
+.wm-td-email{font-weight:500}
+.wm-td-mono{font-family:monospace;font-size:11px;color:#505050}
+.wm-td-empty{padding:24px;text-align:center;color:#505050}
+.wm-badge-pro{background:#f39c12;color:#fff;font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px}
+.wm-badge-free{background:#3c3c3c;color:#858585;font-size:10px;font-weight:700;padding:2px 9px;border-radius:10px}
+.wm-fb-count{font-size:11px;font-weight:600;background:#3c3c3c;border-radius:10px;padding:1px 9px;color:#858585;margin-left:auto}
+.wm-stars{color:#f39c12;font-size:13px;letter-spacing:1px}
+.wm-fb-msg{white-space:pre-wrap;max-width:340px;color:#c8c8c8}
+.wm-td-date{font-size:11px;white-space:nowrap}
+.wm-fb-empty{color:#505050;font-size:13px;padding:8px 0}
+/* ── Changelog ── */
+.cl-list{display:flex;flex-direction:column;gap:0}
+.cl-item{display:flex;gap:0;position:relative}
+.cl-item::before{content:'';position:absolute;left:71px;top:22px;bottom:-1px;width:1px;background:#3c3c3c}
+.cl-item:last-child::before{display:none}
+.cl-date-col{width:72px;flex-shrink:0;padding-top:2px}
+.cl-date{font-size:10px;color:#858585;white-space:nowrap}
+.cl-dot{width:9px;height:9px;border-radius:50%;background:#007acc;flex-shrink:0;margin-top:4px;position:relative;z-index:1;box-shadow:0 0 0 3px rgba(0,122,204,.2)}
+.cl-dot-green{background:#4ec9b0;box-shadow:0 0 0 3px rgba(78,201,176,.2)}
+.cl-dot-gray{background:#858585;box-shadow:0 0 0 3px rgba(133,133,133,.2)}
+.cl-dot-wrap{display:flex;justify-content:center;width:18px;flex-shrink:0;margin:0 10px}
+.cl-body{flex:1;padding-bottom:22px}
+.cl-version{font-size:11px;font-weight:700;color:#007acc;margin-bottom:4px}
+.cl-title{font-size:13px;font-weight:700;color:#d4d4d4;margin-bottom:6px}
+.cl-changes{list-style:none;display:flex;flex-direction:column;gap:3px}
+.cl-changes li{font-size:12px;color:#858585;padding-left:12px;position:relative;line-height:1.5}
+.cl-changes li::before{content:'·';position:absolute;left:2px;color:#454545}
+.cl-tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;margin-right:5px;vertical-align:middle}
+.cl-tag-new{background:rgba(78,201,176,.15);color:#4ec9b0}
+.cl-tag-fix{background:rgba(231,76,60,.12);color:#f48771}
+.cl-tag-imp{background:rgba(0,122,204,.15);color:#569cd6}
+</style>
+</head>
+<body>
+
+<!-- Tab bar -->
+<div id="tab-bar">
+  <a href="/" class="logo">NA<span>GA</span>RE</a>
+  <div class="tab-bar-right">
+    {% if is_pro %}
+      <span class="badge-pro">PRO</span>
+    {% else %}
+      <span class="badge-free">FREE</span>
+    {% endif %}
+    {% set dn = user.display_name or '' %}
+    {% set initials = (dn.split()[0][0] + dn.split()[1][0] if dn.split()|length >= 2 else (dn[0] if dn else user.email[0:2]))|upper %}
+    <a href="/account" class="user-avatar" title="アカウント設定">{{ initials }}</a>
+  </div>
+</div>
+
+<div id="main-area">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sb-profile">
+      <div class="sb-avatar" id="sb-avatar">{{ initials }}</div>
+      <div class="sb-name" id="sb-name">{{ display_name or user.email }}</div>
+      <div class="sb-email">{{ user.email }}</div>
+      <span class="sb-plan {{ 'pro' if is_pro else 'free' }}">{{ 'PRO' if is_pro else 'FREE' }}</span>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-item active" onclick="showSection('profile', this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        プロフィール
+      </div>
+      <div class="sb-item" onclick="showSection('security', this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        セキュリティ
+      </div>
+      <div class="sb-item" onclick="showSection('plan', this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V6H4v6"/><path d="M12 12v9"/><path d="M8 17h8"/></svg>
+        プラン
+      </div>
+      <div class="sb-item" onclick="showSection('feedback', this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        フィードバック
+      </div>
+      <div class="sb-item" onclick="showSection('changelog', this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        更新履歴
+      </div>
+      {% if is_webmaster %}
+      <div class="sb-item sb-webmaster" onclick="showSection('webmaster', this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/><path d="M22 12A10 10 0 002 12"/></svg>
+        WebMaster
+      </div>
+      {% endif %}
+    </div>
+    <div class="sb-bottom">
+      <a href="/logout" class="sb-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+      <div class="sb-item danger" onclick="openDeleteDialog()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+        アカウント削除
+      </div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div id="content">
+
+    <!-- プロフィール -->
+    <div id="section-profile" class="section active">
+      <div class="panel">
+        <div class="panel-hdr">プロフィール</div>
+        <div class="panel-body">
+          <div class="form-row form-row-mb">
+            <div class="form-group">
+              <label for="input-display-name">表示名</label>
+              <input type="text" id="input-display-name" value="{{ display_name }}" placeholder="名前を入力">
+            </div>
+            <div class="form-group">
+              <label for="input-email">メールアドレス</label>
+              <input type="email" id="input-email" value="{{ user.email }}" placeholder="メールアドレス">
+            </div>
+          </div>
+          <button type="button" class="btn-primary" id="btn-profile" onclick="saveProfile()">保存する</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- セキュリティ -->
+    <div id="section-security" class="section">
+      <div class="panel panel-narrow">
+        <div class="panel-hdr">パスワード変更</div>
+        <div class="panel-body panel-body-col">
+          <div class="form-group">
+            <label for="input-cur-pw">現在のパスワード</label>
+            <input type="password" id="input-cur-pw" placeholder="現在のパスワード">
+          </div>
+          <div class="form-group">
+            <label for="input-new-pw">新しいパスワード</label>
+            <input type="password" id="input-new-pw" placeholder="8文字以上">
+          </div>
+          <div class="form-group">
+            <label for="input-new-pw2">新しいパスワード（確認）</label>
+            <input type="password" id="input-new-pw2" placeholder="再入力">
+          </div>
+          <button type="button" class="btn-primary" id="btn-pw" onclick="savePassword()">パスワードを変更</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- プラン -->
+    <div id="section-plan" class="section">
+      <div class="panel panel-mid">
+        <div class="panel-hdr">プラン・支払い</div>
+        <div class="panel-body panel-body-plan">
+          {% if is_pro %}
+          <div class="plan-card current">
+            <div>
+              <div class="plan-label">現在のプラン</div>
+              <div class="plan-name pro">PRO プラン</div>
+              <div class="plan-price">¥1,800 / 月</div>
+            </div>
+            <span class="plan-active">● 有効</span>
+          </div>
+          <p class="plan-note">プランのキャンセルや支払い方法の変更はStripeカスタマーポータルから行えます。</p>
+          {% else %}
+          <div class="plan-card">
+            <div>
+              <div class="plan-label">現在のプラン</div>
+              <div class="plan-name">FREE プラン</div>
+              <div class="plan-price">無料</div>
+            </div>
+          </div>
+          <div class="plan-card current">
+            <div>
+              <div class="plan-label">アップグレード</div>
+              <div class="plan-name plan-name-upgrade">PRO プラン</div>
+              <div class="plan-price">¥1,800 / 月</div>
+            </div>
+            <a href="/pricing" class="btn-upgrade">アップグレード</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if is_webmaster %}
+    <!-- WebMaster -->
+    <div id="section-webmaster" class="section">
+      <!-- 統計 -->
+      <div class="wm-stats">
+        <div class="wm-stat-card">
+          <div class="wm-stat-label">総ユーザー数</div>
+          <div class="wm-stat-value">{{ wm_stats.total_users }}</div>
+        </div>
+        <div class="wm-stat-card c-pro">
+          <div class="wm-stat-label">Pro ユーザー</div>
+          <div class="wm-stat-value">{{ wm_stats.pro_users }}</div>
+        </div>
+        <div class="wm-stat-card c-free">
+          <div class="wm-stat-label">Free ユーザー</div>
+          <div class="wm-stat-value">{{ wm_stats.free_users }}</div>
+        </div>
+        <div class="wm-stat-card c-tasks">
+          <div class="wm-stat-label">総タスク数</div>
+          <div class="wm-stat-value">{{ wm_stats.total_tasks }}</div>
+        </div>
+      </div>
+
+      <!-- ユーザー一覧 -->
+      <div class="panel">
+        <div class="panel-hdr">ユーザー一覧</div>
+        <div class="panel-body">
+          <div class="wm-toolbar">
+            <input type="text" class="wm-search" id="wm-search" placeholder="🔍 メールアドレスで検索…" oninput="wmFilter()">
+            <span class="wm-count" id="wm-count">{{ wm_users | length }}件</span>
+          </div>
+          <div class="wm-table-wrap">
+            <table id="wm-user-table" class="wm-table">
+              <thead>
+                <tr>
+                  <th class="wm-th">#</th>
+                  <th class="wm-th">メールアドレス</th>
+                  <th class="wm-th">プラン</th>
+                  <th class="wm-th">ユーザーID</th>
+                  <th class="wm-th">Stripe 顧客ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in wm_users %}
+                <tr>
+                  <td class="wm-td wm-td-muted">{{ loop.index }}</td>
+                  <td class="wm-td wm-td-email">{{ u.email }}</td>
+                  <td class="wm-td">
+                    {% if u.plan == "pro" %}
+                      <span class="wm-badge-pro">PRO</span>
+                    {% else %}
+                      <span class="wm-badge-free">FREE</span>
+                    {% endif %}
+                  </td>
+                  <td class="wm-td wm-td-mono">{{ u.id }}</td>
+                  <td class="wm-td wm-td-mono">{{ u.stripe_customer_id or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="wm-td wm-td-empty">ユーザーがいません</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 使用サービス -->
+      <div class="panel">
+        <div class="panel-hdr">使用中のサービス</div>
+        <div class="panel-body">
+          <div class="wm-services">
+            <div class="wm-svc"><div class="wm-svc-icon">🚀</div><div><div class="wm-svc-name">Render</div><div class="wm-svc-desc">アプリ本体のホスティング・デプロイ。環境変数管理もここ。</div><a href="https://render.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></div></div>
+            <div class="wm-svc"><div class="wm-svc-icon">☁️</div><div><div class="wm-svc-name">Cloudflare Pages</div><div class="wm-svc-desc">ランディングページのホスティング。</div><a href="https://pages.cloudflare.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></div></div>
+            <div class="wm-svc"><div class="wm-svc-icon">💳</div><div><div class="wm-svc-name">Stripe</div><div class="wm-svc-desc">月額課金（Proプラン・¥1,800）、Webhook設定、価格ID。</div><a href="https://dashboard.stripe.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></div></div>
+            <div class="wm-svc"><div class="wm-svc-icon">📧</div><div><div class="wm-svc-name">Gmail SMTP</div><div class="wm-svc-desc">パスワードリセットメール送信。アプリパスワードで認証。</div><a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="wm-svc-link">設定 →</a></div></div>
+            <div class="wm-svc"><div class="wm-svc-icon">📊</div><div><div class="wm-svc-name">Google Analytics</div><div class="wm-svc-desc">アクセス解析。ID: <span class="env-mono">G-1MHRVYZ2WV</span></div><a href="https://analytics.google.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></div></div>
+          </div>
+
+          <div class="wm-section-title">確認すべき設定</div>
+          <div class="wm-check-list">
+            <div class="wm-check-row"><span class="wm-check-svc">Render</span><span class="wm-check-pt">環境変数（SECRET_KEY, STRIPE_*, MAIL_*, ADMIN_PASSWORD）</span><span class="wm-check-tag">環境変数</span></div>
+            <div class="wm-check-row"><span class="wm-check-svc">Stripe</span><span class="wm-check-pt">Webhookエンドポイント /webhook が登録されているか</span><span class="wm-check-tag">Webhook</span></div>
+            <div class="wm-check-row"><span class="wm-check-svc">Gmail</span><span class="wm-check-pt">アプリパスワードが発行済みか（通常パスワードではNG）</span><span class="wm-check-tag">認証</span></div>
+            <div class="wm-check-row"><span class="wm-check-svc">Cloudflare</span><span class="wm-check-pt">landing/index.html の最新版がデプロイされているか</span><span class="wm-check-tag">デプロイ</span></div>
+          </div>
+
+          <div class="wm-section-title">アプリURL</div>
+          <div class="wm-app-links">
+            <a href="https://nagare-1rss.onrender.com" target="_blank" rel="noopener" class="wm-app-link">🚀 本番アプリ</a>
+            <a href="https://nagare-1rss.onrender.com/admin" target="_blank" rel="noopener" class="wm-app-link">🔐 旧管理画面</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- フィードバック一覧 -->
+      <div class="panel">
+        <div class="panel-hdr">
+          フィードバック一覧
+          <span class="wm-fb-count">{{ wm_feedback | length }}件</span>
+        </div>
+        <div class="panel-body">
+          {% if wm_feedback %}
+          <div class="wm-table-wrap">
+            <table class="wm-table">
+              <thead>
+                <tr>
+                  <th class="wm-th">評価</th>
+                  <th class="wm-th">コメント</th>
+                  <th class="wm-th">ユーザー</th>
+                  <th class="wm-th">送信日時</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for fb in wm_feedback %}
+                <tr>
+                  <td class="wm-td">
+                    <span class="wm-stars">{{ '★' * fb.rating }}{{ '☆' * (5 - fb.rating) }}</span>
+                  </td>
+                  <td class="wm-td wm-fb-msg">{{ fb.message or '—' }}</td>
+                  <td class="wm-td wm-td-mono">{{ fb.user_email or '—' }}</td>
+                  <td class="wm-td wm-td-muted wm-td-date">{{ fb.created_at.strftime('%Y/%m/%d %H:%M') if fb.created_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="wm-fb-empty">フィードバックはまだありません</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 更新履歴 -->
+    <div id="section-changelog" class="section">
+      <div class="panel">
+        <div class="panel-hdr">更新履歴</div>
+        <div class="panel-body">
+          <div class="cl-list">
+
+            <div class="cl-item">
+              <div class="cl-date-col"><div class="cl-date">2025/03/28</div></div>
+              <div class="cl-dot-wrap"><div class="cl-dot"></div></div>
+              <div class="cl-body">
+                <div class="cl-version">v1.4</div>
+                <div class="cl-title">アカウント管理・UI改善</div>
+                <ul class="cl-changes">
+                  <li><span class="cl-tag cl-tag-new">NEW</span>アカウント管理画面を追加（プロフィール・セキュリティ・プラン・フィードバック）</li>
+                  <li><span class="cl-tag cl-tag-new">NEW</span>WebMasterページを追加（ユーザー管理・フィードバック閲覧）</li>
+                  <li><span class="cl-tag cl-tag-new">NEW</span>タスク編集の日付入力をカスタムカレンダーに変更（テキスト入力にも対応）</li>
+                  <li><span class="cl-tag cl-tag-imp">IMP</span>VS Code ダークテーマカラーをアプリ全体に適用</li>
+                  <li><span class="cl-tag cl-tag-imp">IMP</span>ポップアップ通知をカーソル近くに表示するよう変更</li>
+                  <li><span class="cl-tag cl-tag-imp">IMP</span>全ボタンにリップルエフェクトを追加</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="cl-item">
+              <div class="cl-date-col"><div class="cl-date">2025/03/20</div></div>
+              <div class="cl-dot-wrap"><div class="cl-dot cl-dot-green"></div></div>
+              <div class="cl-body">
+                <div class="cl-version">v1.3</div>
+                <div class="cl-title">AI機能・PostgreSQL移行</div>
+                <ul class="cl-changes">
+                  <li><span class="cl-tag cl-tag-new">NEW</span>AIタスク分解・レポート・優先度アドバイス機能を追加</li>
+                  <li><span class="cl-tag cl-tag-new">NEW</span>自然言語でタスクを入力できるNL入力機能を追加</li>
+                  <li><span class="cl-tag cl-tag-imp">IMP</span>ストレージをJSONファイルからPostgreSQLに移行</li>
+                  <li><span class="cl-tag cl-tag-imp">IMP</span>アプリ名をNAGAREにリネーム</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="cl-item">
+              <div class="cl-date-col"><div class="cl-date">2025/03/10</div></div>
+              <div class="cl-dot-wrap"><div class="cl-dot cl-dot-gray"></div></div>
+              <div class="cl-body">
+                <div class="cl-version">v1.0</div>
+                <div class="cl-title">初回リリース</div>
+                <ul class="cl-changes">
+                  <li><span class="cl-tag cl-tag-new">NEW</span>タスク管理・ガントチャート機能</li>
+                  <li><span class="cl-tag cl-tag-new">NEW</span>担当者・ツール管理</li>
+                  <li><span class="cl-tag cl-tag-new">NEW</span>フィルター・検索・ソート機能</li>
+                  <li><span class="cl-tag cl-tag-new">NEW</span>ユーザー認証（登録・ログイン・パスワードリセット）</li>
+                  <li><span class="cl-tag cl-tag-new">NEW</span>Proプラン（Stripe課金）</li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- フィードバック -->
+    <div id="section-feedback" class="section">
+      <div class="panel panel-mid">
+        <div class="panel-hdr">フィードバックを送る</div>
+        <div class="panel-body panel-body-col">
+          <div class="form-group">
+            <label>全体的な満足度</label>
+            <div class="star-row" id="fb-stars">
+              <span class="star" onclick="rateStar(1)" title="1">★</span>
+              <span class="star" onclick="rateStar(2)" title="2">★</span>
+              <span class="star" onclick="rateStar(3)" title="3">★</span>
+              <span class="star" onclick="rateStar(4)" title="4">★</span>
+              <span class="star" onclick="rateStar(5)" title="5">★</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="fb-message">ご意見・ご要望（任意）</label>
+            <textarea id="fb-message" class="fb-textarea" placeholder="機能の改善点や、あったら嬉しい機能など、自由にお聞かせください。"></textarea>
+          </div>
+          <div class="fb-footer">
+            <span class="fb-hint">※ 送信内容は開発改善のみに使用します</span>
+            <button type="button" class="btn-primary" id="btn-feedback" onclick="submitFeedback()">送信する</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 削除確認ダイアログ -->
+<div class="overlay" id="delete-overlay">
+  <div class="dialog">
+    <h3>アカウントを削除しますか？</h3>
+    <p>すべてのデータが完全に削除されます。この操作は元に戻せません。</p>
+    <div class="dialog-btns">
+      <button type="button" class="btn-primary btn-cancel" onclick="closeDeleteDialog()">キャンセル</button>
+      <button type="button" class="btn-danger-outline" id="btn-delete" onclick="deleteAccount()">削除する</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Ripple effect ──
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.btn-primary,.btn-danger-outline,.btn-upgrade');
+  if (!btn) return;
+  const r = document.createElement('span');
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  r.className = 'ripple';
+  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+  btn.appendChild(r);
+  r.addEventListener('animationend', () => r.remove());
+});
+
+function showSection(name, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(s => s.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+function toast(msg, isError=false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+async function saveProfile() {
+  const btn = document.getElementById('btn-profile');
+  const display_name = document.getElementById('input-display-name').value.trim();
+  const email = document.getElementById('input-email').value.trim();
+  btn.textContent = '保存中…'; btn.disabled = true;
+  const res = await fetch('/api/account/profile', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({display_name, email})
+  });
+  const data = await res.json();
+  btn.textContent = '保存する'; btn.disabled = false;
+  if (!res.ok) { toast(data.error, true); return; }
+  toast('プロフィールを保存しました');
+  const initials = display_name
+    ? display_name.split(' ').filter(Boolean).map(w=>w[0]).join('').toUpperCase().slice(0,2)
+    : email.slice(0,2).toUpperCase();
+  document.getElementById('sb-avatar').textContent = initials;
+  document.getElementById('sb-name').textContent = display_name || email;
+}
+
+async function savePassword() {
+  const btn = document.getElementById('btn-pw');
+  const current_password = document.getElementById('input-cur-pw').value;
+  const new_password = document.getElementById('input-new-pw').value;
+  const new_password2 = document.getElementById('input-new-pw2').value;
+  if (new_password !== new_password2) { toast('新しいパスワードが一致しません', true); return; }
+  btn.textContent = '変更中…'; btn.disabled = true;
+  const res = await fetch('/api/account/password', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({current_password, new_password})
+  });
+  const data = await res.json();
+  btn.textContent = 'パスワードを変更'; btn.disabled = false;
+  if (!res.ok) { toast(data.error, true); return; }
+  toast('パスワードを変更しました');
+  ['input-cur-pw','input-new-pw','input-new-pw2'].forEach(id => document.getElementById(id).value='');
+}
+
+function openDeleteDialog() { document.getElementById('delete-overlay').classList.add('open'); }
+function closeDeleteDialog() { document.getElementById('delete-overlay').classList.remove('open'); }
+
+async function deleteAccount() {
+  const btn = document.getElementById('btn-delete');
+  btn.textContent = '削除中…'; btn.disabled = true;
+  const res = await fetch('/api/account/delete', {method:'POST'});
+  if (res.ok) { window.location.href = '/login'; }
+  else { toast('エラーが発生しました', true); btn.textContent='削除する'; btn.disabled=false; }
+}
+
+// ── WebMaster ──
+function wmFilter() {
+  const q = document.getElementById('wm-search').value.toLowerCase();
+  const rows = document.querySelectorAll('#wm-user-table tbody tr');
+  let count = 0;
+  rows.forEach(tr => {
+    const match = tr.textContent.toLowerCase().includes(q);
+    tr.style.display = match ? '' : 'none';
+    if (match) count++;
+  });
+  const total = rows.length;
+  document.getElementById('wm-count').textContent = q ? `${count}/${total}件` : `${total}件`;
+}
+
+// ── Feedback ──
+let fbRating = 0;
+function rateStar(val) {
+  fbRating = val;
+  document.querySelectorAll('#fb-stars .star').forEach((s, i) => {
+    s.classList.toggle('active', i < val);
+  });
+}
+async function submitFeedback() {
+  if (!fbRating) { toast('評価を選択してください', true); return; }
+  const btn = document.getElementById('btn-feedback');
+  const message = document.getElementById('fb-message').value.trim();
+  btn.textContent = '送信中…'; btn.disabled = true;
+  const res = await fetch('/api/feedback', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({rating: fbRating, message})
+  });
+  const data = await res.json();
+  btn.textContent = '送信する'; btn.disabled = false;
+  if (!res.ok) { toast(data.error, true); return; }
+  toast('フィードバックを送信しました。ありがとうございます！');
+  fbRating = 0;
+  document.querySelectorAll('#fb-stars .star').forEach(s => s.classList.remove('active'));
+  document.getElementById('fb-message').value = '';
+}
+</script>
+</body>
+</html>
