@@ -226,8 +226,9 @@ th{
   white-space:nowrap;border-bottom:2px solid #454545;
 }
 th:hover{background:#383838}
-th.sorted-asc::after {content:" ▲";font-size:10px;color:#007acc}
-th.sorted-desc::after{content:" ▼";font-size:10px;color:#007acc}
+.fp-arr-asc,.fp-arr-desc{display:none}
+th.sorted-asc  .fp-arr-asc {display:block;stroke:#007acc}
+th.sorted-desc .fp-arr-desc{display:block;stroke:#007acc}
 
 /* task table widths */
 .col-id      {width:42px}
@@ -329,23 +330,75 @@ tr.selected td {background:#094771!important}
 .th-inner{display:flex;align-items:center;gap:4px;justify-content:space-between}
 .col-name{flex:1}
 .filter-btn{
-  width:16px;height:16px;border-radius:3px;background:none;border:none;
+  width:19px;height:16px;border-radius:3px;background:none;border:none;
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;color:#bbb;font-size:9px;flex-shrink:0;transition:all .1s;
 }
 .filter-btn:hover{background:#505050;color:#d4d4d4}
 .filter-btn svg{display:block;pointer-events:none}
-th.col-filtered{color:#007acc}
-th.col-filtered .filter-btn{color:#007acc}
+.fp-funnel{fill:#bbb}
+th.col-filtered .fp-funnel{fill:#007acc}
+
+/* ── Debug window ───────────────────────────────────── */
+#dbg-win{
+  position:fixed;bottom:20px;right:20px;width:800px;height:600px;
+  background:#1a1a1a;border:1px solid #555;border-radius:8px;
+  display:none;flex-direction:column;z-index:9000;
+  box-shadow:0 8px 40px rgba(0,0,0,.85);font-family:monospace;
+  resize:both;overflow:hidden;min-width:320px;min-height:200px;
+}
+#dbg-win.dbg-open{display:flex}
+#dbg-hdr{
+  display:flex;align-items:center;gap:8px;padding:6px 10px;
+  background:#252526;border-bottom:1px solid #444;cursor:move;
+  flex-shrink:0;-webkit-user-select:none;user-select:none;
+}
+#dbg-hdr span{flex:1;font-size:12px;font-weight:700;color:#ccc;letter-spacing:.5px}
+.dbg-hdr-btn{background:none;border:1px solid #555;border-radius:3px;color:#aaa;font-size:11px;padding:2px 8px;cursor:pointer}
+.dbg-hdr-btn:hover{background:#3a3a3a;color:#fff}
+#dbg-body{flex:1;overflow-y:auto;padding:6px 8px;min-height:0}
+#dbg-body::-webkit-scrollbar{width:6px}
+#dbg-body::-webkit-scrollbar-thumb{background:#404040;border-radius:3px}
+.dbg-line{display:flex;gap:8px;padding:2px 0;border-bottom:1px solid #232323;font-size:11px;line-height:1.5}
+.dbg-time{color:#555;flex-shrink:0;width:88px}
+.dbg-elapsed{color:#4a4a6a;flex-shrink:0;width:54px;text-align:right;font-size:10px;padding-top:1px}
+.dbg-tag{flex-shrink:0;width:56px;font-weight:700;border-radius:3px;padding:0 4px;text-align:center;font-size:10px}
+.dbg-tag-api   {color:#4fc3f7;background:#0d3349}
+.dbg-tag-sort  {color:#a5d6a7;background:#1b3a1f}
+.dbg-tag-filter{color:#ffcc80;background:#3a2800}
+.dbg-tag-ui    {color:#ce93d8;background:#2a1535}
+.dbg-tag-err   {color:#ef9a9a;background:#3b1010}
+.dbg-tag-info  {color:#b0bec5;background:#1a2733}
+.dbg-msg{color:#d4d4d4;word-break:break-all}
+#dbg-footer{padding:4px 8px;background:#1e1e1e;border-top:1px solid #333;flex-shrink:0;display:flex;align-items:center;gap:8px}
+#dbg-count{font-size:10px;color:#666;flex:1}
+.dbg-toggle-btn{
+  background:none;border:none;color:#888;font-size:13px;cursor:pointer;
+  padding:2px 5px;border-radius:3px;transition:color .1s;
+}
+.dbg-toggle-btn:hover{color:#fff;background:#333}
 
 /* ── Filter popup ───────────────────────────────────── */
 .filter-popup{
-  position:fixed;background:#252526;border:1px solid #454545;border-radius:8px;
-  padding:10px;z-index:2000;width:210px;
-  box-shadow:0 8px 32px rgba(0,0,0,.7);display:none;
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:800px;height:600px;min-width:400px;min-height:300px;
+  background:#252526;border:1px solid #454545;border-radius:8px;
+  z-index:2000;box-shadow:0 12px 48px rgba(0,0,0,.85);
+  display:none;flex-direction:column;resize:both;overflow:hidden;
 }
-.filter-popup.fp-open{display:block}
-.filter-popup.fp-date-mode{width:278px}
+.filter-popup.fp-open{display:flex}
+#fp-header{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:#2d2d2d;border-bottom:1px solid #454545;
+  cursor:move;flex-shrink:0;
+  -webkit-user-select:none;user-select:none;
+}
+#fp-title{flex:1;font-size:13px;font-weight:700;color:#ccc}
+.fp-close-btn{background:none;border:none;color:#888;font-size:14px;cursor:pointer;padding:0 4px;line-height:1}
+.fp-close-btn:hover{color:#fff}
+#fp-body{flex:1;min-height:0;display:flex;flex-direction:column;padding:10px;gap:0}
+#fp-text-section{flex:1;min-height:0;display:flex;flex-direction:column}
+#fp-date-section{flex:1;min-height:0;display:none;flex-direction:column}
 .fp-btns{display:flex;gap:6px;margin-top:8px;border-top:1px solid #3c3c3c;padding-top:8px}
 .fp-btn{flex:1;padding:5px 0;border-radius:4px;border:none;font-size:11px;font-weight:700;cursor:pointer}
 .fp-ok{background:#005a9e;color:#fff}.fp-ok:hover{background:#007acc}
@@ -357,22 +410,32 @@ th.col-filtered .filter-btn{color:#007acc}
   color:#d4d4d4;padding:5px 8px;font-size:12px;margin-bottom:8px;outline:none;
 }
 .fp-search:focus{border-color:#007acc}
-.fp-all{
-  display:flex;align-items:center;gap:7px;padding:4px 6px;
-  border-bottom:1px solid #3c3c3c;margin-bottom:4px;cursor:pointer;border-radius:3px;
-}
-.fp-all:hover{background:#2a2d2e}
-.fp-all label{cursor:pointer;font-size:12px;color:#b0b0b0;font-weight:700}
-.fp-list{max-height:180px;overflow-y:auto}
-.fp-list::-webkit-scrollbar{width:4px}
-.fp-list::-webkit-scrollbar-thumb{background:#505050;border-radius:2px}
-.fp-item{display:flex;align-items:center;gap:7px;padding:4px 6px;cursor:pointer;border-radius:3px}
-.fp-item:hover{background:#2a2d2e}
-.fp-item label{cursor:pointer;font-size:12px;color:#d4d4d4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fp-item input[type=checkbox],.fp-all input[type=checkbox]{
-  accent-color:#007acc;width:13px;height:13px;flex-shrink:0;cursor:pointer;
-}
-.fp-empty{color:#858585;font-size:11px;padding:8px 6px;text-align:center}
+/* filter table */
+.fp-tbl-wrap{flex:1;min-height:0;overflow-y:auto;border:1px solid #3c3c3c;border-radius:4px}
+.fp-tbl-wrap::-webkit-scrollbar{width:5px}
+.fp-tbl-wrap::-webkit-scrollbar-thumb{background:#505050;border-radius:3px}
+.fp-tbl{width:100%;border-collapse:collapse;table-layout:fixed}
+.fp-tbl thead{position:sticky;top:0;z-index:1}
+.fp-tbl thead tr{background:#2a2a2e}
+.fp-tbl th{padding:7px 10px;font-size:11px;color:#a0a0b0;font-weight:700;
+  border-bottom:2px solid #454545;text-align:left;white-space:nowrap}
+.fp-col-chk{width:36px;text-align:center !important}
+.fp-col-val-hdr{cursor:pointer;-webkit-user-select:none;user-select:none}
+.fp-col-val-hdr:hover{color:#7ab0d4}
+.fp-col-val-hdr.fp-sort-active{color:#007acc}
+.fp-col-cnt{width:72px;text-align:right !important;cursor:pointer;-webkit-user-select:none;user-select:none}
+.fp-col-cnt:hover{color:#7ab0d4}
+.fp-col-cnt.fp-sort-active{color:#007acc}
+.fp-tbl tbody tr{border-bottom:1px solid #272727;transition:background .08s}
+.fp-tbl tbody tr:hover{background:#2a2d2e}
+.fp-tbl tbody tr:nth-child(even){background:#1f1f22}
+.fp-tbl tbody tr:nth-child(even):hover{background:#2a2d2e}
+.fp-tbl td{padding:5px 10px;font-size:12px;color:#d4d4d4}
+.fp-tbl td.fp-col-chk{text-align:center}
+.fp-tbl td.fp-col-cnt{color:#858585;font-size:11px;text-align:right}
+.fp-tbl td.fp-col-val label{cursor:pointer;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-tbl input[type=checkbox]{accent-color:#007acc;width:13px;height:13px;cursor:pointer}
+.fp-empty{color:#858585;font-size:11px;padding:16px;text-align:center}
 #fp-date-section{display:none}
 .fp-range-hint{
   font-size:11px;text-align:center;padding:5px 6px;
@@ -388,9 +451,9 @@ th.col-filtered .filter-btn{color:#007acc}
   border-radius:4px;padding:2px 8px;cursor:pointer;font-size:11px;
 }
 .fp-mc-nav:hover{background:#505050;color:#fff}
-.fp-date-body{display:flex;gap:8px}
+.fp-date-body{display:flex;gap:8px;flex:1;min-height:0}
 .fp-cal-year-col{display:flex;flex-direction:column;align-items:stretch;gap:3px;flex-shrink:0;width:50px}
-.fp-cal-year-list{display:flex;flex-direction:column;gap:2px;overflow-y:auto;max-height:156px}
+.fp-cal-year-list{display:flex;flex-direction:column;gap:2px;overflow-y:auto;flex:1;min-height:0}
 .fp-cal-year-list::-webkit-scrollbar{width:0}
 .fp-ys-btn{
   background:#3c3c3c;border:1px solid #454545;border-radius:4px;
@@ -506,6 +569,7 @@ th.col-filtered .filter-btn{color:#007acc}
   <button type="button" id="tab-btn-tool"     class="tab-btn"        onclick="switchTab('tool')"     data-i18n="tab_tool">ツール</button>
   <button type="button" id="tab-btn-assignee" class="tab-btn"        onclick="switchTab('assignee')" data-i18n="tab_assignee">担当者</button>
   <button type="button" id="tab-btn-ai"       class="tab-btn"        onclick="switchTab('ai')">🤖 AI</button>
+  <button type="button" class="dbg-toggle-btn" onclick="dbgToggle()" title="デバッグウィンドウ">🪲</button>
   <div style="margin-left:auto;display:flex;align-items:center;gap:10px;padding-right:4px">
     <div class="lang-switcher" id="lang-switcher">
       <button type="button" class="lang-trigger" onclick="toggleLangMenu()" id="lang-trigger">🌐</button>
@@ -758,14 +822,14 @@ th.col-filtered .filter-btn{color:#007acc}
         <table>
           <thead><tr>
             <th onclick="sortTaskBy('id')" data-col="id" class="col-id">ID</th>
-            <th onclick="sortTaskBy('assignee')" data-col="assignee" class="col-asgn"><div class="th-inner"><span class="col-name" data-i18n="col_assignee">担当者</span><button type="button" class="filter-btn" onclick="fpOpen(event,'assignee')" title="フィルタ"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 0h10L6.5 4.5v5l-3-1.5V4.5z"/></svg></button></div></th>
-            <th onclick="sortTaskBy('tool')" data-col="tool" class="col-tool"><div class="th-inner"><span class="col-name">Tool</span><button type="button" class="filter-btn" onclick="fpOpen(event,'tool')" title="フィルタ"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 0h10L6.5 4.5v5l-3-1.5V4.5z"/></svg></button></div></th>
-            <th onclick="sortTaskBy('name')" data-col="name"><div class="th-inner"><span class="col-name" data-i18n="col_name">タスク名</span><button type="button" class="filter-btn" onclick="fpOpen(event,'name')" title="フィルタ"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 0h10L6.5 4.5v5l-3-1.5V4.5z"/></svg></button></div></th>
-            <th onclick="sortTaskBy('implementation_date')" data-col="implementation_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_impl">実施日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'implementation_date')" title="フィルタ"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 0h10L6.5 4.5v5l-3-1.5V4.5z"/></svg></button></div></th>
-            <th onclick="sortTaskBy('request_date')" data-col="request_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_req">依頼日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'request_date')" title="フィルタ"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 0h10L6.5 4.5v5l-3-1.5V4.5z"/></svg></button></div></th>
-            <th onclick="sortTaskBy('start_date')" data-col="start_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_start">着手日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'start_date')" title="フィルタ"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 0h10L6.5 4.5v5l-3-1.5V4.5z"/></svg></button></div></th>
-            <th onclick="sortTaskBy('distribution_date')" data-col="distribution_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_dist">配布日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'distribution_date')" title="フィルタ"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 0h10L6.5 4.5v5l-3-1.5V4.5z"/></svg></button></div></th>
-            <th onclick="sortTaskBy('end_date')" data-col="end_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_end">完了日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'end_date')" title="フィルタ"><svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><path d="M0 0h10L6.5 4.5v5l-3-1.5V4.5z"/></svg></button></div></th>
+            <th onclick="sortTaskBy('assignee')" data-col="assignee" class="col-asgn"><div class="th-inner"><span class="col-name" data-i18n="col_assignee">担当者</span><button type="button" class="filter-btn" onclick="fpOpen(event,'assignee')" title="ソート/フィルタ"><svg width="13" height="10" viewBox="0 0 13 10"><path class="fp-funnel" d="M0 0h8L5.5 3.2v4.8l-2-1V3.2z"/><path class="fp-arr-asc"  d="M11 9V1M9.5 2.5L11 1l1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="fp-arr-desc" d="M11 1v8M9.5 7.5L11 9l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></th>
+            <th onclick="sortTaskBy('tool')" data-col="tool" class="col-tool"><div class="th-inner"><span class="col-name">Tool</span><button type="button" class="filter-btn" onclick="fpOpen(event,'tool')" title="ソート/フィルタ"><svg width="13" height="10" viewBox="0 0 13 10"><path class="fp-funnel" d="M0 0h8L5.5 3.2v4.8l-2-1V3.2z"/><path class="fp-arr-asc"  d="M11 9V1M9.5 2.5L11 1l1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="fp-arr-desc" d="M11 1v8M9.5 7.5L11 9l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></th>
+            <th onclick="sortTaskBy('name')" data-col="name"><div class="th-inner"><span class="col-name" data-i18n="col_name">タスク名</span><button type="button" class="filter-btn" onclick="fpOpen(event,'name')" title="ソート/フィルタ"><svg width="13" height="10" viewBox="0 0 13 10"><path class="fp-funnel" d="M0 0h8L5.5 3.2v4.8l-2-1V3.2z"/><path class="fp-arr-asc"  d="M11 9V1M9.5 2.5L11 1l1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="fp-arr-desc" d="M11 1v8M9.5 7.5L11 9l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></th>
+            <th onclick="sortTaskBy('implementation_date')" data-col="implementation_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_impl">実施日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'implementation_date')" title="ソート/フィルタ"><svg width="13" height="10" viewBox="0 0 13 10"><path class="fp-funnel" d="M0 0h8L5.5 3.2v4.8l-2-1V3.2z"/><path class="fp-arr-asc"  d="M11 9V1M9.5 2.5L11 1l1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="fp-arr-desc" d="M11 1v8M9.5 7.5L11 9l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></th>
+            <th onclick="sortTaskBy('request_date')" data-col="request_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_req">依頼日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'request_date')" title="ソート/フィルタ"><svg width="13" height="10" viewBox="0 0 13 10"><path class="fp-funnel" d="M0 0h8L5.5 3.2v4.8l-2-1V3.2z"/><path class="fp-arr-asc"  d="M11 9V1M9.5 2.5L11 1l1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="fp-arr-desc" d="M11 1v8M9.5 7.5L11 9l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></th>
+            <th onclick="sortTaskBy('start_date')" data-col="start_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_start">着手日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'start_date')" title="ソート/フィルタ"><svg width="13" height="10" viewBox="0 0 13 10"><path class="fp-funnel" d="M0 0h8L5.5 3.2v4.8l-2-1V3.2z"/><path class="fp-arr-asc"  d="M11 9V1M9.5 2.5L11 1l1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="fp-arr-desc" d="M11 1v8M9.5 7.5L11 9l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></th>
+            <th onclick="sortTaskBy('distribution_date')" data-col="distribution_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_dist">配布日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'distribution_date')" title="ソート/フィルタ"><svg width="13" height="10" viewBox="0 0 13 10"><path class="fp-funnel" d="M0 0h8L5.5 3.2v4.8l-2-1V3.2z"/><path class="fp-arr-asc"  d="M11 9V1M9.5 2.5L11 1l1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="fp-arr-desc" d="M11 1v8M9.5 7.5L11 9l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></th>
+            <th onclick="sortTaskBy('end_date')" data-col="end_date" class="col-date"><div class="th-inner"><span class="col-name" data-i18n="col_end">完了日</span><button type="button" class="filter-btn" onclick="fpOpen(event,'end_date')" title="ソート/フィルタ"><svg width="13" height="10" viewBox="0 0 13 10"><path class="fp-funnel" d="M0 0h8L5.5 3.2v4.8l-2-1V3.2z"/><path class="fp-arr-asc"  d="M11 9V1M9.5 2.5L11 1l1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path class="fp-arr-desc" d="M11 1v8M9.5 7.5L11 9l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></th>
           </tr></thead>
           <tbody id="task-tbody"></tbody>
         </table>
@@ -916,16 +980,40 @@ th.col-filtered .filter-btn{color:#007acc}
 </div><!-- /tab-ai -->
 
 </div><!-- /main-area -->
+
+<!-- ══════════ DEBUG WINDOW ══════════ -->
+<div id="dbg-win">
+  <div id="dbg-hdr">
+    <span>🪲 Debug Log</span>
+    <button type="button" class="dbg-hdr-btn" onclick="dbgClear()">クリア</button>
+    <button type="button" class="dbg-hdr-btn" onclick="dbgToggle()">✕</button>
+  </div>
+  <div id="dbg-body"></div>
+  <div id="dbg-footer"><span id="dbg-count">0 件</span></div>
+</div>
+
 <!-- ══════════ FILTER POPUP ══════════ -->
 <div class="filter-popup" id="filter-popup">
+  <div id="fp-header">
+    <span id="fp-title">フィルタ / ソート</span>
+    <button type="button" class="fp-close-btn" onclick="fpClose()">✕</button>
+  </div>
+  <div id="fp-body">
   <!-- テキスト列用 -->
   <div id="fp-text-section">
     <input type="text" class="fp-search" id="fp-search" placeholder="🔍 検索…" oninput="fpRenderList()">
-    <div class="fp-all">
-      <input type="checkbox" id="fp-all-cb" onchange="fpToggleAll(this.checked)">
-      <label for="fp-all-cb" data-i18n="fp_all">（すべて選択）</label>
+    <div class="fp-tbl-wrap">
+      <table class="fp-tbl">
+        <thead>
+          <tr>
+            <th class="fp-col-chk"><input type="checkbox" id="fp-all-cb" onchange="fpToggleAll(this.checked)"></th>
+            <th class="fp-col-val fp-col-val-hdr" id="fp-val-sort-btn" onclick="fpToggleSortByVal()">値 <span id="fp-val-sort-icon">↕</span></th>
+            <th class="fp-col-cnt" id="fp-cnt-sort-btn" onclick="fpToggleSortByCount()">件数 <span id="fp-cnt-sort-icon">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="fp-list"></tbody>
+      </table>
     </div>
-    <div class="fp-list" id="fp-list"></div>
   </div>
   <!-- 日付列用 -->
   <div id="fp-date-section">
@@ -959,6 +1047,7 @@ th.col-filtered .filter-btn{color:#007acc}
     <button type="button" class="fp-btn fp-cancel" onclick="fpClose()"  data-i18n="fp_cancel">キャンセル</button>
     <button type="button" class="fp-btn fp-ok"     onclick="fpApply()"  data-i18n="fp_ok">OK</button>
   </div>
+  </div><!-- /fp-body -->
 </div>
 
 <div id="toast"></div>
@@ -1023,13 +1112,79 @@ function switchTab(tab) {
 /* ═══════════════════════════════════════════════
    API helper
 ═══════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   Debug window
+═══════════════════════════════════════════════ */
+let _dbgCount = 0;
+let _dbgLastMs = null;
+function dbg(tag, msg) {
+  const win = document.getElementById("dbg-win");
+  if (!win) return;
+  const body = document.getElementById("dbg-body");
+  const now  = new Date();
+  const nowMs = now.getTime();
+  const ts   = now.toTimeString().slice(0,8) + "." + String(now.getMilliseconds()).padStart(3,"0");
+  const elapsed = _dbgLastMs === null ? "—" : ((nowMs - _dbgLastMs) / 1000).toFixed(3) + "s";
+  _dbgLastMs = nowMs;
+  const line = document.createElement("div");
+  line.className = "dbg-line";
+  line.innerHTML = `<span class="dbg-time">${ts}</span><span class="dbg-elapsed">${elapsed}</span><span class="dbg-tag dbg-tag-${tag}">${tag.toUpperCase()}</span><span class="dbg-msg">${esc(msg)}</span>`;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+  _dbgCount++;
+  document.getElementById("dbg-count").textContent = _dbgCount + " 件";
+}
+function dbgToggle() {
+  document.getElementById("dbg-win").classList.toggle("dbg-open");
+}
+function dbgClear() {
+  document.getElementById("dbg-body").innerHTML = "";
+  _dbgCount = 0;
+  _dbgLastMs = null;
+  document.getElementById("dbg-count").textContent = "0 件";
+}
+// ドラッグ共通
+function makeDraggable(hdrId, winId, skipClass) {
+  document.addEventListener("DOMContentLoaded", () => {
+    const hdr = document.getElementById(hdrId);
+    const win = document.getElementById(winId);
+    if (!hdr || !win) return;
+    hdr.addEventListener("mousedown", e => {
+      if (skipClass && e.target.classList.contains(skipClass)) return;
+      const rect = win.getBoundingClientRect();
+      const sx = rect.left, sy = rect.top;
+      const ox = e.clientX,  oy = e.clientY;
+      win.style.transform = "none";
+      win.style.left = sx + "px"; win.style.top = sy + "px";
+      win.style.right = "auto";   win.style.bottom = "auto";
+      function move(e) {
+        win.style.left = (sx + e.clientX - ox) + "px";
+        win.style.top  = (sy + e.clientY - oy) + "px";
+      }
+      function up() { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); }
+      document.addEventListener("mousemove", move);
+      document.addEventListener("mouseup",   up);
+    });
+  });
+}
+makeDraggable("dbg-hdr",  "dbg-win",      "dbg-hdr-btn");
+makeDraggable("fp-header", "filter-popup", "fp-close-btn");
+
+/* ═══════════════════════════════════════════════
+   API helper
+═══════════════════════════════════════════════ */
 async function api(url, opts={}) {
+  const method = (opts.method || "GET").toUpperCase();
+  dbg("api", `リクエスト: ${method} ${url}` + (opts.body ? "　データ: " + JSON.stringify(opts.body) : ""));
   const res = await fetch(url, {
     headers:{"Content-Type":"application/json"},
     ...opts,
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-  return res.json();
+  const data = await res.json();
+  if (data.error) dbg("err", `エラー: ${method} ${url} → ${data.error}: ${data.message||""}`);
+  else            dbg("api", `完了: ${method} ${url} → ステータス ${res.status}`);
+  return data;
 }
 
 /* ═══════════════════════════════════════════════
@@ -1445,14 +1600,20 @@ function selectTask(id) {
     if(ty<vis0||ty+TASK_H>vis1) gb.scrollTop=Math.max(0,ty-gb.clientHeight/2+TASK_H/2);
   }
 }
-function sortTaskBy(col) {
-  if(taskSortKey===col)taskSortAsc=!taskSortAsc;else{taskSortKey=col;taskSortAsc=true;}
+function sortTaskBy(col, forcedAsc) {
+  if(forcedAsc !== undefined){taskSortKey=col;taskSortAsc=forcedAsc;}
+  else if(taskSortKey===col)taskSortAsc=!taskSortAsc;
+  else{taskSortKey=col;taskSortAsc=true;}
+  dbg("sort", `ソート: 列「${col}」　順序: ${taskSortAsc?"昇順":"降順"}`);
   document.querySelectorAll("th[data-col]").forEach(th=>{
     th.classList.remove("sorted-asc","sorted-desc");
     if(th.dataset.col===col)th.classList.add(taskSortAsc?"sorted-asc":"sorted-desc");
   });
   renderTaskList();
 }
+function fpSortAsc()  { sortTaskBy(_fpCol, true);  fpUpdateSortBtns(); }
+function fpSortDesc() { sortTaskBy(_fpCol, false); fpUpdateSortBtns(); }
+function fpUpdateSortBtns() { /* sort buttons removed — no-op */ }
 function filteredTasks() {
   const allSt   = document.querySelectorAll('#filter-status-list input');
   const chkSt   = [...allSt].filter(cb=>cb.checked).map(cb=>cb.value);
@@ -1849,9 +2010,10 @@ function selectPickerMonth(m) {
 /* ═══════════════════════════════════════════════
    Column filter popup
 ═══════════════════════════════════════════════ */
-let _fpCol      = null;
-let _fpState    = {};
-let _fpDateFrom = null;
+let _fpCol         = null;
+let _fpState       = {};
+let _fpSortMode = ""; // "" | "val-asc" | "val-desc" | "count"
+let _fpDateFrom    = null;
 let _fpDateTo   = null;
 let _fpHoverDate= null;
 let _fpCalYear  = new Date().getFullYear();
@@ -1866,13 +2028,15 @@ function fpUpdateHeaders() {
 
 function fpOpen(e, col) {
   e.stopPropagation();
+  dbg("filter", `フィルタ/ソートパネルを開く: 列「${col}」`);
   const popup = document.getElementById("filter-popup");
   if (_fpCol === col && popup.classList.contains("fp-open")) { fpClose(); return; }
   _fpCol = col;
   const isDate = TASK_COLS.find(c => c.key === col)?.type === "date";
-  document.getElementById("fp-text-section").style.display = isDate ? "none"  : "block";
-  document.getElementById("fp-date-section").style.display = isDate ? "block" : "none";
-  popup.classList.toggle("fp-date-mode", isDate);
+  const colLabel = TASK_COLS.find(c => c.key === col)?.label ?? col;
+  document.getElementById("fp-title").textContent = `フィルタ / ソート：${colLabel}`;
+  document.getElementById("fp-text-section").style.display = isDate ? "none"  : "flex";
+  document.getElementById("fp-date-section").style.display = isDate ? "flex"  : "none";
 
   if (isDate) {
     const active = taskColFilters[col];
@@ -1890,16 +2054,16 @@ function fpOpen(e, col) {
     const active = taskColFilters[col];
     allVals.forEach(v => _fpState[v] = active===null || active.has(v));
     document.getElementById("fp-search").value = "";
+    _fpSortMode = "";
+    fpResetSortIcons();
     fpRenderList();
   }
 
-  const pw   = isDate ? 278 : 210;
-  const rect = e.currentTarget.getBoundingClientRect();
-  let left   = rect.left;
-  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
-  popup.style.top  = (rect.bottom + 4) + "px";
-  popup.style.left = left + "px";
+  // 毎回中央にリセット
+  popup.style.top = "50%"; popup.style.left = "50%";
+  popup.style.transform = "translate(-50%,-50%)";
   popup.classList.add("fp-open");
+  fpUpdateSortBtns();
 }
 
 function fpClose() {
@@ -1908,20 +2072,48 @@ function fpClose() {
   _fpHoverDate= null;
 }
 
+function fpResetSortIcons() {
+  document.getElementById("fp-val-sort-btn").classList.remove("fp-sort-active");
+  document.getElementById("fp-cnt-sort-btn").classList.remove("fp-sort-active");
+  document.getElementById("fp-val-sort-icon").textContent = "↕";
+  document.getElementById("fp-cnt-sort-icon").textContent = "↕";
+}
+function fpToggleSortByVal() {
+  _fpSortMode = _fpSortMode === "val-asc" ? "val-desc" : "val-asc";
+  fpResetSortIcons();
+  document.getElementById("fp-val-sort-btn").classList.add("fp-sort-active");
+  document.getElementById("fp-val-sort-icon").textContent = _fpSortMode === "val-asc" ? "↑" : "↓";
+  fpRenderList();
+}
+function fpToggleSortByCount() {
+  _fpSortMode = _fpSortMode === "count" ? "" : "count";
+  fpResetSortIcons();
+  if (_fpSortMode === "count") {
+    document.getElementById("fp-cnt-sort-btn").classList.add("fp-sort-active");
+    document.getElementById("fp-cnt-sort-icon").textContent = "↓";
+  }
+  fpRenderList();
+}
 function fpRenderList() {
   const q       = document.getElementById("fp-search").value.toLowerCase();
-  const allVals = [...new Set(tasks.map(r => String(r[_fpCol]??"")))].sort();
+  const countMap = {};
+  tasks.forEach(r => { const k = String(r[_fpCol]??""); countMap[k] = (countMap[k]||0) + 1; });
+  let allVals = [...new Set(tasks.map(r => String(r[_fpCol]??"")))].sort();
+  if (_fpSortMode === "val-desc") allVals.reverse();
+  else if (_fpSortMode === "count") allVals.sort((a,b) => (countMap[b]||0) - (countMap[a]||0));
   const visible = allVals.filter(v => !q || v.toLowerCase().includes(q));
   const list    = document.getElementById("fp-list");
   list.innerHTML = visible.length === 0
-    ? `<div class="fp-empty">一致なし</div>`
+    ? `<tr><td colspan="3" class="fp-empty">一致なし</td></tr>`
     : visible.map((v,i) => {
-        const id = "fp_item_" + i;
-        return `<div class="fp-item">
-          <input type="checkbox" id="${id}" data-val="${String(v).replace(/"/g,'&quot;')}"
-            ${_fpState[v]?'checked':''} onchange="fpItemToggle(this)">
-          <label for="${id}" title="${esc(v)}">${esc(v)}</label>
-        </div>`;
+        const id  = "fp_item_" + i;
+        const val = String(v).replace(/"/g,'&quot;');
+        return `<tr class="fp-item">
+          <td class="fp-col-chk"><input type="checkbox" id="${id}" data-val="${val}"
+            ${_fpState[v]?'checked':''} onchange="fpItemToggle(this)"></td>
+          <td class="fp-col-val"><label for="${id}" title="${esc(v)}">${esc(v)}</label></td>
+          <td class="fp-col-cnt">${countMap[v]||0}</td>
+        </tr>`;
       }).join('');
   const cnt = visible.filter(v => _fpState[v]).length;
   const cb  = document.getElementById("fp-all-cb");
@@ -1963,6 +2155,7 @@ function fpClear() {
 function fpApply() {
   const col    = _fpCol;
   const isDate = TASK_COLS.find(c => c.key === col)?.type === "date";
+  dbg("filter", `フィルタ適用: 列「${col}」　種別: ${isDate?"日付範囲":"テキスト選択"}`);
   if (isDate) {
     taskColFilters[col] = (_fpDateFrom || _fpDateTo)
       ? {from:_fpDateFrom, to:_fpDateTo} : null;
@@ -2127,6 +2320,7 @@ function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").repl
 let _mx=window.innerWidth/2,_my=window.innerHeight/2;
 document.addEventListener('mousemove',e=>{_mx=e.clientX;_my=e.clientY;});
 function toast(msg){
+  dbg("ui", `通知: ${msg}`);
   const el=document.getElementById("toast");
   el.textContent=msg;
   // サイズ取得のため一時的に不可視で配置
@@ -2449,10 +2643,12 @@ document.addEventListener("click",e=>{
     document.getElementById("lang-menu")?.classList.remove("open");
 });
 // Init i18n after data loaded
+dbg("info", "アプリ初期化開始");
 Promise.all([loadTools(),loadAssignees()]).then(()=>{
   refreshDataLists();
   loadTasks();
   applyLang();
+  dbg("info", "アプリ初期化完了");
 });
 
 /* ═══════════════════════════════════════════════

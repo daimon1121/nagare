@@ -143,7 +143,12 @@ body{font-family:"Segoe UI","Meiryo",sans-serif;background:#1e1e1e;color:#d4d4d4
 .wm-app-link:hover{background:#505050}
 .sb-webmaster{color:#f39c12;margin-top:4px;border-top:1px solid #3c3c3c}
 .sb-webmaster:hover{color:#f39c12}
-.wm-table-wrap{overflow-x:auto}
+.wm-table-wrap{overflow-x:auto;margin-bottom:16px}
+.wm-th-icon{width:32px}
+.wm-th-link{width:110px}
+.wm-td-icon{text-align:center;font-size:1.1rem}
+.wm-td-name{font-weight:700}
+.wm-td-desc{color:#858585}
 .wm-table{width:100%;border-collapse:collapse;font-size:12px}
 .wm-th{background:#37373d;padding:8px 10px;text-align:left;color:#858585;font-weight:700;border-bottom:1px solid #454545;white-space:nowrap}
 .wm-td{padding:9px 10px;border-bottom:1px solid #3c3c3c;color:#d4d4d4}
@@ -398,12 +403,55 @@ body{font-family:"Segoe UI","Meiryo",sans-serif;background:#1e1e1e;color:#d4d4d4
       <div class="panel">
         <div class="panel-hdr">使用中のサービス</div>
         <div class="panel-body">
-          <div class="wm-services">
-            <div class="wm-svc"><div class="wm-svc-icon">🚀</div><div><div class="wm-svc-name">Render</div><div class="wm-svc-desc">アプリ本体のホスティング・デプロイ。環境変数管理もここ。</div><a href="https://render.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></div></div>
-            <div class="wm-svc"><div class="wm-svc-icon">☁️</div><div><div class="wm-svc-name">Cloudflare Pages</div><div class="wm-svc-desc">ランディングページのホスティング。</div><a href="https://pages.cloudflare.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></div></div>
-            <div class="wm-svc"><div class="wm-svc-icon">💳</div><div><div class="wm-svc-name">Stripe</div><div class="wm-svc-desc">月額課金（Proプラン・¥1,800）、Webhook設定、価格ID。</div><a href="https://dashboard.stripe.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></div></div>
-            <div class="wm-svc"><div class="wm-svc-icon">📧</div><div><div class="wm-svc-name">Gmail SMTP</div><div class="wm-svc-desc">パスワードリセットメール送信。アプリパスワードで認証。</div><a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="wm-svc-link">設定 →</a></div></div>
-            <div class="wm-svc"><div class="wm-svc-icon">📊</div><div><div class="wm-svc-name">Google Analytics</div><div class="wm-svc-desc">アクセス解析。ID: <span class="env-mono">G-1MHRVYZ2WV</span></div><a href="https://analytics.google.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></div></div>
+          <div class="wm-table-wrap">
+            <table class="wm-table">
+              <thead>
+                <tr>
+                  <th class="wm-th wm-th-icon"></th>
+                  <th class="wm-th">サービス名</th>
+                  <th class="wm-th">用途</th>
+                  <th class="wm-th wm-th-link">リンク</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="wm-td wm-td-icon">🚀</td>
+                  <td class="wm-td wm-td-name">Render</td>
+                  <td class="wm-td wm-td-desc">アプリ本体のホスティング・デプロイ。環境変数管理もここ。</td>
+                  <td class="wm-td"><a href="https://render.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></td>
+                </tr>
+                <tr>
+                  <td class="wm-td wm-td-icon">☁️</td>
+                  <td class="wm-td wm-td-name">Cloudflare Pages</td>
+                  <td class="wm-td wm-td-desc">ランディングページのホスティング。</td>
+                  <td class="wm-td"><a href="https://pages.cloudflare.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></td>
+                </tr>
+                <tr>
+                  <td class="wm-td wm-td-icon">💳</td>
+                  <td class="wm-td wm-td-name">Stripe</td>
+                  <td class="wm-td wm-td-desc">月額課金（Proプラン・¥1,800）、Webhook設定、価格ID。</td>
+                  <td class="wm-td"><a href="https://dashboard.stripe.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></td>
+                </tr>
+                <tr>
+                  <td class="wm-td wm-td-icon">📧</td>
+                  <td class="wm-td wm-td-name">Gmail SMTP</td>
+                  <td class="wm-td wm-td-desc">パスワードリセットメール送信。アプリパスワードで認証。</td>
+                  <td class="wm-td"><a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" class="wm-svc-link">設定 →</a></td>
+                </tr>
+                <tr>
+                  <td class="wm-td wm-td-icon">📊</td>
+                  <td class="wm-td wm-td-name">Google Analytics</td>
+                  <td class="wm-td wm-td-desc">アクセス解析。ID: <span class="env-mono">G-1MHRVYZ2WV</span></td>
+                  <td class="wm-td"><a href="https://analytics.google.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></td>
+                </tr>
+                <tr>
+                  <td class="wm-td wm-td-icon">🤖</td>
+                  <td class="wm-td wm-td-name">Claude AI</td>
+                  <td class="wm-td wm-td-desc">AI機能の開発・動作確認。</td>
+                  <td class="wm-td"><a href="https://claude.ai/new" target="_blank" rel="noopener" class="wm-svc-link">開く →</a></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           <div class="wm-section-title">確認すべき設定</div>
