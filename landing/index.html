@@ -18,7 +18,7 @@
 html{scroll-behavior:smooth}
 body{font-family:"Segoe UI","Noto Sans JP","Noto Sans",sans-serif;background:var(--c-bg);color:var(--c-text);line-height:1.7;overflow-x:hidden}
 
-nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(11,15,26,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--c-border)}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(11,15,26,.85);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-bottom:1px solid var(--c-border)}
 .nav-inner{max-width:1100px;margin:0 auto;padding:0 24px;height:60px;display:flex;align-items:center;gap:24px}
 .logo{font-size:20px;font-weight:800;color:#fff;text-decoration:none;letter-spacing:-.02em;flex-shrink:0}
 .logo span{color:var(--c-primary)}
@@ -84,6 +84,10 @@ section{padding:96px 24px}
 .mock-text{font-size:12px;color:#94a3b8}
 .mock-bar-wrap{flex:1;height:8px;background:#1e293b;border-radius:4px;overflow:hidden;margin:0 8px}
 .mock-bar{height:100%;border-radius:4px}
+.mock-bar-done{width:100%;background:#22c55e}
+.mock-bar-wip60{width:60%;background:#f59e0b}
+.mock-bar-wip40{width:40%;background:#f59e0b}
+.mock-bar-todo{width:0%;background:#3b82f6}
 
 #pricing{background:var(--c-surface)}
 .pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:24px;margin-top:56px;max-width:680px}
@@ -111,6 +115,12 @@ footer{background:var(--c-surface);border-top:1px solid var(--c-border);padding:
 
 .fade-up{opacity:0;transform:translateY(32px);transition:opacity .6s ease,transform .6s ease}
 .fade-up.visible{opacity:1;transform:none}
+.btn-primary-lg{font-size:18px;padding:16px 40px}
+.screen-label{font-size:12px;color:#64748b;margin-left:8px}
+.pro-plan-name{margin-top:16px}
+.mock-pro-badge{margin-left:auto;font-size:11px;color:#f59e0b;font-weight:700;padding:2px 10px;background:rgba(245,158,11,.1);border-radius:20px}
+.mock-text-flex{flex:1}
+.cta-sub{color:var(--c-muted);margin:16px 0 36px}
 
 @media(max-width:600px){
   .nav-links{display:none}
@@ -124,9 +134,9 @@ footer{background:var(--c-surface);border-top:1px solid var(--c-border);padding:
   <div class="nav-inner">
     <a href="#" class="logo">NAG<span>ARE</span></a>
     <div class="nav-links">
-      <a href="#features" data-i18n="nav_features"></a>
-      <a href="#demo" data-i18n="nav_demo"></a>
-      <a href="#pricing" data-i18n="nav_pricing"></a>
+      <a href="#features" data-i18n="nav_features" title="機能">機能</a>
+      <a href="#demo" data-i18n="nav_demo" title="デモ">デモ</a>
+      <a href="#pricing" data-i18n="nav_pricing" title="料金">料金</a>
     </div>
     <div class="lang-switcher">
       <button class="lang-btn" onclick="toggleLang()" id="lang-btn">
@@ -143,7 +153,7 @@ footer{background:var(--c-surface);border-top:1px solid var(--c-border);padding:
         <div class="lang-option" onclick="setLang('fr')"><span class="lang-flag">🇫🇷</span>Français</div>
       </div>
     </div>
-    <a href="https://taskmanagement-1rss.onrender.com/signup" class="nav-cta" data-i18n="nav_cta"></a>
+    <a href="https://taskmanagement-1rss.onrender.com/signup" class="nav-cta" data-i18n="nav_cta" title="無料で始める">無料で始める</a>
   </div>
 </nav>
 
@@ -153,8 +163,8 @@ footer{background:var(--c-surface);border-top:1px solid var(--c-border);padding:
     <h1 data-i18n="hero_h1_html"></h1>
     <p data-i18n="hero_p"></p>
     <div class="hero-btns">
-      <a href="https://taskmanagement-1rss.onrender.com/signup" class="btn-primary" data-i18n="hero_cta1"></a>
-      <a href="#features" class="btn-ghost" data-i18n="hero_cta2"></a>
+      <a href="https://taskmanagement-1rss.onrender.com/signup" class="btn-primary" data-i18n="hero_cta1" title="無料で始める">無料で始める →</a>
+      <a href="#features" class="btn-ghost" data-i18n="hero_cta2" title="機能を見る">機能を見る</a>
     </div>
     <p class="hero-sub" data-i18n="hero_sub"></p>
   </div>
@@ -211,38 +221,38 @@ footer{background:var(--c-surface);border-top:1px solid var(--c-border);padding:
     <div class="screen-wrap fade-up">
       <div class="screen-bar">
         <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
-        <span style="font-size:12px;color:#64748b;margin-left:8px">NAGARE</span>
+        <span class="screen-label">NAGARE</span>
       </div>
       <div class="screen-body">
         <div class="mock-header">
           <div class="mock-tab" data-i18n="mock_tab1"></div>
           <div class="mock-tab inactive" data-i18n="mock_tab2"></div>
           <div class="mock-tab inactive" data-i18n="mock_tab3"></div>
-          <span style="margin-left:auto;font-size:11px;color:#f59e0b;font-weight:700;padding:2px 10px;background:rgba(245,158,11,.1);border-radius:20px">PRO</span>
+          <span class="mock-pro-badge">PRO</span>
         </div>
         <div class="mock-row">
           <span class="mock-badge done" data-i18n="status_done"></span>
-          <span class="mock-text" style="flex:1" data-i18n="task1"></span>
+          <span class="mock-text mock-text-flex" data-i18n="task1"></span>
           <span class="mock-text" data-i18n="person1"></span>
-          <div class="mock-bar-wrap"><div class="mock-bar" style="width:100%;background:#22c55e"></div></div>
+          <div class="mock-bar-wrap"><div class="mock-bar mock-bar-done"></div></div>
         </div>
         <div class="mock-row">
           <span class="mock-badge wip" data-i18n="status_wip"></span>
-          <span class="mock-text" style="flex:1" data-i18n="task2"></span>
+          <span class="mock-text mock-text-flex" data-i18n="task2"></span>
           <span class="mock-text" data-i18n="person2"></span>
-          <div class="mock-bar-wrap"><div class="mock-bar" style="width:60%;background:#f59e0b"></div></div>
+          <div class="mock-bar-wrap"><div class="mock-bar mock-bar-wip60"></div></div>
         </div>
         <div class="mock-row">
           <span class="mock-badge wip" data-i18n="status_wip"></span>
-          <span class="mock-text" style="flex:1" data-i18n="task3"></span>
+          <span class="mock-text mock-text-flex" data-i18n="task3"></span>
           <span class="mock-text" data-i18n="person3"></span>
-          <div class="mock-bar-wrap"><div class="mock-bar" style="width:40%;background:#f59e0b"></div></div>
+          <div class="mock-bar-wrap"><div class="mock-bar mock-bar-wip40"></div></div>
         </div>
         <div class="mock-row">
           <span class="mock-badge todo" data-i18n="status_todo"></span>
-          <span class="mock-text" style="flex:1" data-i18n="task4"></span>
+          <span class="mock-text mock-text-flex" data-i18n="task4"></span>
           <span class="mock-text" data-i18n="person4"></span>
-          <div class="mock-bar-wrap"><div class="mock-bar" style="width:0%;background:#3b82f6"></div></div>
+          <div class="mock-bar-wrap"><div class="mock-bar mock-bar-todo"></div></div>
         </div>
       </div>
     </div>
@@ -268,11 +278,11 @@ footer{background:var(--c-surface);border-top:1px solid var(--c-border);padding:
           <li class="no" data-i18n="pro_f1"></li>
           <li class="no" data-i18n="pro_f4"></li>
         </ul>
-        <a href="https://taskmanagement-1rss.onrender.com/signup" class="btn-plan btn-plan-free" data-i18n="free_btn"></a>
+        <a href="https://taskmanagement-1rss.onrender.com/signup" class="btn-plan btn-plan-free" data-i18n="free_btn" title="無料で始める">無料で始める</a>
       </div>
       <div class="price-card pro">
         <div class="pro-badge-wrap"><span class="pro-badge" data-i18n="recommended"></span></div>
-        <p class="plan-name" style="margin-top:16px">Pro</p>
+        <p class="plan-name pro-plan-name">Pro</p>
         <div class="plan-price">¥500 <span data-i18n="per_month"></span></div>
         <p class="plan-desc" data-i18n="pro_desc"></p>
         <ul class="plan-features">
@@ -281,7 +291,7 @@ footer{background:var(--c-surface);border-top:1px solid var(--c-border);padding:
           <li data-i18n="pro_f3"></li>
           <li data-i18n="pro_f4"></li>
         </ul>
-        <a href="https://taskmanagement-1rss.onrender.com/pricing" class="btn-plan btn-plan-pro" data-i18n="pro_btn"></a>
+        <a href="https://taskmanagement-1rss.onrender.com/pricing" class="btn-plan btn-plan-pro" data-i18n="pro_btn" title="Proにアップグレード">Proにアップグレード</a>
       </div>
     </div>
   </div>
@@ -290,8 +300,8 @@ footer{background:var(--c-surface);border-top:1px solid var(--c-border);padding:
 <section id="cta">
   <div class="section-inner fade-up">
     <h2 class="section-title" data-i18n="cta_title"></h2>
-    <p style="color:var(--c-muted);margin:16px 0 36px" data-i18n="cta_sub"></p>
-    <a href="https://taskmanagement-1rss.onrender.com/signup" class="btn-primary" style="font-size:18px;padding:16px 40px" data-i18n="cta_btn"></a>
+    <p class="cta-sub" data-i18n="cta_sub"></p>
+    <a href="https://taskmanagement-1rss.onrender.com/signup" class="btn-primary btn-primary-lg" data-i18n="cta_btn" title="無料で始める">無料で始める</a>
   </div>
 </section>
 
