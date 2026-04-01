@@ -500,11 +500,11 @@ body{font-family:"Segoe UI","Meiryo",sans-serif;background:#1e1e1e;color:#d4d4d4
         <div class="panel-body">
           <div class="wm-demo-stats">
             <div class="wm-demo-stat">
-              <div class="wm-demo-stat-label">ダミー担当者</div>
+              <div class="wm-demo-stat-label">DEMO担当者</div>
               <div class="wm-demo-stat-val" id="wm-dummy-assignee-count">-</div>
             </div>
             <div class="wm-demo-stat">
-              <div class="wm-demo-stat-label">ダミータスク</div>
+              <div class="wm-demo-stat-label">DEMOタスク</div>
               <div class="wm-demo-stat-val" id="wm-dummy-task-count">-</div>
             </div>
           </div>
@@ -522,13 +522,13 @@ body{font-family:"Segoe UI","Meiryo",sans-serif;background:#1e1e1e;color:#d4d4d4
               <span class="wm-demo-hint">最大100件</span>
             </div>
             <div class="wm-demo-note">※ 担当者名は「デモ 太郎」など、タスク名は「【DEMO】〜」で登録されます</div>
-            <button type="button" class="wm-demo-btn-gen" onclick="wmGenerateDummy()">🎲 ダミーデータを生成</button>
+            <button type="button" class="wm-demo-btn-gen" onclick="wmGenerateDummy()">🎲 DEMOデータを生成</button>
           </div>
 
           <div class="wm-demo-block wm-demo-block-danger">
             <div class="wm-demo-block-title">削除</div>
             <div class="wm-demo-note">「デモ」担当者と「【DEMO】」タスクをすべて削除します</div>
-            <button type="button" class="wm-demo-btn-del" onclick="wmDeleteDummy()">🗑 全ダミーデータを削除</button>
+            <button type="button" class="wm-demo-btn-del" onclick="wmDeleteDummy()">🗑 全DEMOデータを削除</button>
           </div>
 
           <div id="wm-demo-msg" class="wm-demo-msg wm-demo-msg-hidden"></div>
@@ -779,7 +779,7 @@ function _wmDemoMsg(text, isOk) {
   el.className = 'wm-demo-msg ' + (isOk ? 'ok' : 'err');
 }
 function wmLoadDummyStats() {
-  fetch('/admin/dummy_stats').then(r => r.json()).then(d => {
+  fetch('/api/demo/stats').then(r => r.json()).then(d => {
     document.getElementById('wm-dummy-assignee-count').textContent = d.assignees + ' 人';
     document.getElementById('wm-dummy-task-count').textContent    = d.tasks    + ' 件';
   }).catch(() => {});
@@ -787,19 +787,19 @@ function wmLoadDummyStats() {
 function wmGenerateDummy() {
   const assignees = parseInt(document.getElementById('wm-inp-assignees').value) || 5;
   const tasks     = parseInt(document.getElementById('wm-inp-tasks').value)     || 20;
-  fetch('/admin/generate_dummy', {
+  fetch('/api/demo/generate', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({assignees, tasks})
   }).then(r => r.json()).then(d => {
-    if (d.ok) { _wmDemoMsg('✅ ダミーデータを生成しました', true); wmLoadDummyStats(); }
+    if (d.ok) { _wmDemoMsg('✅ DEMOデータを生成しました', true); wmLoadDummyStats(); }
     else       { _wmDemoMsg('❌ 生成に失敗しました', false); }
   }).catch(() => _wmDemoMsg('❌ 通信エラー', false));
 }
 function wmDeleteDummy() {
-  if (!confirm('ダミー担当者とダミータスクをすべて削除しますか？')) return;
-  fetch('/admin/delete_dummy', {method: 'POST'}).then(r => r.json()).then(d => {
-    if (d.ok) { _wmDemoMsg('🗑 ダミーデータを削除しました', true); wmLoadDummyStats(); }
+  if (!confirm('DEMO担当者とDEMOタスクをすべて削除しますか？')) return;
+  fetch('/api/demo/delete', {method: 'POST'}).then(r => r.json()).then(d => {
+    if (d.ok) { _wmDemoMsg('🗑 DEMOデータを削除しました', true); wmLoadDummyStats(); }
     else       { _wmDemoMsg('❌ 削除に失敗しました', false); }
   }).catch(() => _wmDemoMsg('❌ 通信エラー', false));
 }

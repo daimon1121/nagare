@@ -701,11 +701,9 @@ _DEMO_TASK_NAMES = [
 _DEMO_STATUSES  = ["未着手", "進行中", "完了", "未着手", "未着手"]
 _DEMO_PRIORITIES = ["高", "中", "低", "高", "中"]
 
-@app.route("/admin/dummy_stats")
+@app.route("/api/demo/stats")
 @login_required
-def admin_dummy_stats():
-    if not _webmaster_required():
-        return jsonify({"error": "forbidden"}), 403
+def api_demo_stats():
     with get_db() as (_, cur):
         cur.execute("SELECT COUNT(*) FROM assignees WHERE email LIKE '%@dummy.test'")
         a_count = cur.fetchone()["count"]
@@ -713,11 +711,9 @@ def admin_dummy_stats():
         t_count = cur.fetchone()["count"]
     return jsonify({"assignees": a_count, "tasks": t_count})
 
-@app.route("/admin/generate_dummy", methods=["POST"])
+@app.route("/api/demo/generate", methods=["POST"])
 @login_required
-def admin_generate_dummy():
-    if not _webmaster_required():
-        return jsonify({"error": "forbidden"}), 403
+def api_demo_generate():
     import random
     data   = request.json or {}
     n_a    = max(1, min(int(data.get("assignees", 5)), 10))
@@ -725,17 +721,13 @@ def admin_generate_dummy():
     today  = datetime.now()
     def d(n): return (today + timedelta(days=n)).strftime("%Y-%m-%d")
     with get_db() as (conn, cur):
-        # 担当者追加（既存は skip）
         added_names = []
         for name, slug in _DEMO_ASSIGNEE_NAMES[:n_a]:
             email = f"{slug}@dummy.test"
             cur.execute("SELECT id FROM assignees WHERE email=%s", (email,))
             if not cur.fetchone():
                 cur.execute("INSERT INTO assignees (name, email) VALUES (%s,%s)", (name, email))
-                added_names.append(name)
-            else:
-                added_names.append(name)
-        # タスク追加
+            added_names.append(name)
         task_names = _DEMO_TASK_NAMES * ((n_t // len(_DEMO_TASK_NAMES)) + 1)
         for i in range(n_t):
             name     = task_names[i]
@@ -749,15 +741,13 @@ def admin_generate_dummy():
                 INSERT INTO tasks (name,request_date,start_date,distribution_date,end_date,
                                    status,priority,assignee,description)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """, (name, rq, s, di, e, status, priority, assignee, "デモ用のサンプルタスクです。"))
+            """, (name, rq, s, di, e, status, priority, assignee, "DEMOデータです。"))
         conn.commit()
     return jsonify({"ok": True})
 
-@app.route("/admin/delete_dummy", methods=["POST"])
+@app.route("/api/demo/delete", methods=["POST"])
 @login_required
-def admin_delete_dummy():
-    if not _webmaster_required():
-        return jsonify({"error": "forbidden"}), 403
+def api_demo_delete():
     with get_db() as (conn, cur):
         cur.execute("DELETE FROM tasks WHERE name LIKE '【DEMO】%'")
         cur.execute("DELETE FROM assignees WHERE email LIKE '%@dummy.test'")
