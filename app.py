@@ -36,7 +36,6 @@ stripe.api_key         = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET  = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PRICE_ID        = os.environ.get("STRIPE_PRICE_ID", "")
-ADMIN_PASSWORD         = os.environ.get("ADMIN_PASSWORD", "")
 WEBMASTER_EMAIL        = "isamu.hayashi@hp.com"
 
 FREE_TASK_LIMIT = 10
@@ -237,14 +236,6 @@ def login_required(f):
 def is_pro():
     u = current_user()
     return u and u.get("plan") == "pro"
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get("is_admin"):
-            return redirect(url_for("admin_login"))
-        return f(*args, **kwargs)
-    return decorated
 
 # ─── Admin Stats Helper ───────────────────────────────────────────────────────
 def _get_site_stats():
@@ -688,28 +679,10 @@ def api_me():
     return jsonify({"email": u["email"], "plan": u["plan"]})
 
 # ─── Admin Routes ─────────────────────────────────────────────────────────────
-@app.route("/admin/login", methods=["GET","POST"])
-def admin_login():
-    if request.method == "POST":
-        pw = request.form.get("password","")
-        if ADMIN_PASSWORD and pw == ADMIN_PASSWORD:
-            session["is_admin"] = True
-            return redirect(url_for("admin_dashboard"))
-        flash("パスワードが正しくありません")
-    return render_template("admin_login.html")
-
-@app.route("/admin/logout")
-def admin_logout():
-    session.pop("is_admin", None)
-    return redirect(url_for("admin_login"))
-
-@app.route("/admin")
-@admin_required
-def admin_dashboard():
-    users, stats, _ = _get_site_stats()
-    return render_template("admin_dashboard.html", users=users, stats=stats)
-
 # ─── Admin: Dummy Data ────────────────────────────────────────────────────────
+def _webmaster_required():
+    u = current_user()
+    return u and u.get("email") == WEBMASTER_EMAIL
 _DEMO_ASSIGNEE_NAMES = [
     ("デモ 太郎", "demo_taro"), ("デモ 花子", "demo_hanako"), ("デモ 次郎", "demo_jiro"),
     ("デモ 三郎", "demo_saburo"), ("デモ 桃子", "demo_momoko"), ("デモ 健一", "demo_kenichi"),
@@ -729,8 +702,10 @@ _DEMO_STATUSES  = ["未着手", "進行中", "完了", "未着手", "未着手"]
 _DEMO_PRIORITIES = ["高", "中", "低", "高", "中"]
 
 @app.route("/admin/dummy_stats")
-@admin_required
+@login_required
 def admin_dummy_stats():
+    if not _webmaster_required():
+        return jsonify({"error": "forbidden"}), 403
     with get_db() as (_, cur):
         cur.execute("SELECT COUNT(*) FROM assignees WHERE email LIKE '%@dummy.test'")
         a_count = cur.fetchone()["count"]
@@ -739,8 +714,10 @@ def admin_dummy_stats():
     return jsonify({"assignees": a_count, "tasks": t_count})
 
 @app.route("/admin/generate_dummy", methods=["POST"])
-@admin_required
+@login_required
 def admin_generate_dummy():
+    if not _webmaster_required():
+        return jsonify({"error": "forbidden"}), 403
     import random
     data   = request.json or {}
     n_a    = max(1, min(int(data.get("assignees", 5)), 10))
@@ -777,8 +754,10 @@ def admin_generate_dummy():
     return jsonify({"ok": True})
 
 @app.route("/admin/delete_dummy", methods=["POST"])
-@admin_required
+@login_required
 def admin_delete_dummy():
+    if not _webmaster_required():
+        return jsonify({"error": "forbidden"}), 403
     with get_db() as (conn, cur):
         cur.execute("DELETE FROM tasks WHERE name LIKE '【DEMO】%'")
         cur.execute("DELETE FROM assignees WHERE email LIKE '%@dummy.test'")
