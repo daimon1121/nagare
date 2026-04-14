@@ -446,6 +446,12 @@ body{font-family:"Segoe UI","Meiryo",sans-serif;background:#1e1e1e;color:#d4d4d4
                   <td class="wm-td"><a href="https://render.com" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></td>
                 </tr>
                 <tr>
+                  <td class="wm-td wm-td-icon">🐘</td>
+                  <td class="wm-td wm-td-name">Neon</td>
+                  <td class="wm-td wm-td-desc">PostgreSQL データベース。無料枠で運用中。</td>
+                  <td class="wm-td"><a href="https://console.neon.tech" target="_blank" rel="noopener" class="wm-svc-link">dashboard →</a></td>
+                </tr>
+                <tr>
                   <td class="wm-td wm-td-icon">☁️</td>
                   <td class="wm-td wm-td-name">Cloudflare Pages</td>
                   <td class="wm-td wm-td-desc">ランディングページのホスティング。</td>
@@ -481,7 +487,8 @@ body{font-family:"Segoe UI","Meiryo",sans-serif;background:#1e1e1e;color:#d4d4d4
 
           <div class="wm-section-title">確認すべき設定</div>
           <div class="wm-check-list">
-            <div class="wm-check-row"><span class="wm-check-svc">Render</span><span class="wm-check-pt">環境変数（SECRET_KEY, STRIPE_*, MAIL_*, ADMIN_PASSWORD）</span><span class="wm-check-tag">環境変数</span></div>
+            <div class="wm-check-row"><span class="wm-check-svc">Render</span><span class="wm-check-pt">環境変数（SECRET_KEY, DATABASE_URL, STRIPE_*, MAIL_*, ADMIN_PASSWORD）</span><span class="wm-check-tag">環境変数</span></div>
+            <div class="wm-check-row"><span class="wm-check-svc">Neon</span><span class="wm-check-pt">DATABASE_URL が Neon の接続文字列になっているか</span><span class="wm-check-tag">DB接続</span></div>
             <div class="wm-check-row"><span class="wm-check-svc">Stripe</span><span class="wm-check-pt">Webhookエンドポイント /webhook が登録されているか</span><span class="wm-check-tag">Webhook</span></div>
             <div class="wm-check-row"><span class="wm-check-svc">Gmail</span><span class="wm-check-pt">アプリパスワードが発行済みか（通常パスワードではNG）</span><span class="wm-check-tag">認証</span></div>
             <div class="wm-check-row"><span class="wm-check-svc">Cloudflare</span><span class="wm-check-pt">landing/index.html の最新版がデプロイされているか</span><span class="wm-check-tag">デプロイ</span></div>
